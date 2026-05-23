@@ -6,11 +6,11 @@ A Flow is a directory under `flows/<slug>/` containing a `SKILL.md` and `FLOW.md
 
 ## Contributing
 
-1. Read [the Flow Folder Standard](https://github.com/<owner>/<flowy-web-repo>/blob/main/docs/standards/flow-folder-standard.md).
+1. Read [the Flow Folder Standard](https://github.com/MaximoCorrea1/flowy/blob/main/docs/standards/flow-folder-standard.md).
 2. Fork this repo.
 3. Add your flow under `flows/<your-slug>/`.
 4. Open a PR using the template.
-5. Wait for review by @<maintainer>.
+5. Wait for review by @MaximoCorrea1.
 
 Approved Flows appear in the Flowy catalog at https://flowy.dev/listings.
 
