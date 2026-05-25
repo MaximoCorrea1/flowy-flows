@@ -1,52 +1,58 @@
 ---
 name: engineering-without-vibe-coding
-description: 7-phase pipeline from idea to shipped feature — ideate, spec, plan, execute, review, ship, compound.
-version: 0.1.0
+description: Routing layer over superpowers skills — auto-invokes the right skill at the right moment so agents stop vibe-coding and start engineering.
+version: 0.2.0
 license: CC-BY-SA-4.0
+requires: superpowers (https://github.com/obra/superpowers)
 ---
 
 <!-- License: CC-BY-SA-4.0. Copyright (c) 2026 Maximo Correa. -->
+<!-- Requires: superpowers plugin by Jesse Vincent (MIT). Install via: -->
+<!-- npx skills@latest add obra/superpowers-marketplace              -->
 
-# Engineering With AI Without Vibe Coding
+# Engineering Without Vibe Coding
 
-A discipline Flow for building real software with AI agents. Seven phases
-take you from "I have an idea" to "it's shipped and documented" — with
-gates between each phase that prevent the agent from skipping steps,
-shipping untested code, or solving the wrong problem.
+Superpowers gives you 14 skills. This Flow tells your agent WHEN to use
+each one.
 
-## Who this is for
+The problem: skills don't auto-invoke. An agent with superpowers installed
+will happily skip brainstorming, write code without TDD, ship without
+review, and claim "done" without verification. The skills exist on disk
+but the agent doesn't know when to fire them.
 
-Builders who use AI agents (Claude Code, Cursor, Claude Desktop, Codex)
-and have been burned by vibe-coding: code that looks right at a glance
-but breaks on edge cases the human never asked about. You want the agent's
-speed without losing engineering discipline.
+This FLOW.md solves that. It defines an event → skill routing table that
+the agent checks before every action. When a trigger matches, the agent
+MUST invoke the corresponding skill via the Skill tool. No skipping. No
+"I'll handle it inline." The skill fires or the workflow is violated.
 
 ## How to use
 
-1. Add this Flow to your project (copy the folder or reference it).
-2. Point your agent at `FLOW.md` in this directory.
-3. Describe what you want to build.
-4. The agent follows the 7-phase pipeline. You approve at each gate.
-
-No plugins required. No dependencies. Works with any language or framework.
+1. Install superpowers: `npx skills@latest add obra/superpowers-marketplace`
+2. Copy this Flow folder into your project (or reference it from CLAUDE.md)
+3. Add the CLAUDE.md integration block from FLOW.md to your project's CLAUDE.md
+4. Start working. The agent auto-routes to the right skill at each step.
 
 ## What's inside
 
-- **FLOW.md** — the routing document. Tells the agent what to do at each
-  phase, what output to produce, and what must be true before moving on.
-- **examples/** — a redacted transcript showing the Flow in action on a
-  real task.
+- **FLOW.md** — the routing document. Event triggers → skill invocations.
+  Paste the integration block into your CLAUDE.md and the routing is live.
+- **examples/** — transcript showing the routing in action.
 
-## The 7 phases
+## The 14 skills this Flow routes
 
-1. **Ideate** — forcing questions before any code
-2. **Spec** — lock the language, scope, and success criteria
-3. **Plan** — break into implementation units with test scenarios
-4. **Execute** — TDD: red → green → refactor → commit
-5. **Review** — multi-lens code review (correctness, security, testing, style)
-6. **Ship** — PR, merge, deploy, verify
-7. **Compound** — retro + handoff + CONTEXT.md update
-
-Each phase has a token-efficiency mode (FULL for thinking, MED for
-structured output, CAVE for execution) that cuts token usage ~30-50%
-without sacrificing quality where it matters.
+| Skill | When it fires |
+|-------|---------------|
+| `brainstorming` | New idea, unclear scope |
+| `writing-plans` | Spec exists, need tasks |
+| `executing-plans` | Plan exists, working through it |
+| `subagent-driven-development` | 3+ independent tasks, want parallelism |
+| `dispatching-parallel-agents` | Need to fan-out workers |
+| `test-driven-development` | About to write any implementation code |
+| `systematic-debugging` | Something is broken, cause unknown |
+| `verification-before-completion` | About to claim anything is "done" |
+| `requesting-code-review` | Code complete, need review |
+| `receiving-code-review` | Got review feedback, need to process it |
+| `finishing-a-development-branch` | All tasks done, branch ready |
+| `using-git-worktrees` | Need isolated parallel branches |
+| `writing-skills` | Want to create a custom skill |
+| `using-superpowers` | Meta: how the skill system works |

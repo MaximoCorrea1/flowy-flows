@@ -1,117 +1,116 @@
-# Example: Adding a download endpoint to a web app
+# Example: Building a download endpoint with the routing table active
 
-Redacted transcript showing Phases 3-6 of the Engineering Without Vibe
-Coding flow on a real task. Phases 1-2 happened in a prior session;
-the problem statement and spec already exist.
-
----
-
-## Phase 3: Plan [MED]
-
-**User:** I need a download endpoint for listings. Authenticated users
-hit GET /listings/[slug]/download and get signed URLs to the bundle
-files. Rate-limited to 5/day.
-
-**Agent:**
-
-Breaking into 3 units:
-
-- [ ] **Unit 1: Rate-limit migration**
-  - Files: `supabase/migrations/20260523_rate_limit.sql`
-  - Approach: extend existing enum, reuse rate_limit_counters table
-  - Test: migration applies cleanly
-  - Verify: enum value exists in DB
-
-- [ ] **Unit 2: Download helper (pure function)**
-  - Files: `lib/listings/download.ts`, `lib/listings/download.test.ts`
-  - Approach: entitlement check → rate-limit → sign URLs → log invocation
-  - Test scenarios:
-    - Happy: authed user, published listing → returns manifest
-    - Edge: anonymous → 401
-    - Edge: rate-limited → 429
-    - Error: signing fails → 500
-  - Verify: all tests green
-
-- [ ] **Unit 3: Route handler + page CTA**
-  - Files: `app/listings/[slug]/download/route.ts`, `app/listings/[slug]/page.tsx`
-  - Approach: thin GET handler delegates to helper, page adds Download button
-  - Verify: manual test — click button, get signed URLs
-
-Does this look right?
-
-**User:** Yes, go.
+Shows the FLOW.md routing in action across 4 skill invocations. The
+agent states its routing decision at each step per the integration block.
 
 ---
 
-## Phase 4: Execute [CAVE]
+**User:** I need a download endpoint. Authenticated users hit
+GET /listings/[slug]/download and get signed URLs. Rate-limited.
 
-**Agent:**
+**Agent:** `Routing: superpowers:writing-plans — clear task, needs breakdown`
 
-Writing test for Unit 2: happy path.
+*[writing-plans skill fires: reads the spec, breaks into 3 units with
+test scenarios, presents plan with checkboxes]*
+
+**Agent presents:**
+- [ ] Unit 1: Rate-limit migration
+- [ ] Unit 2: Download helper (entitlement → rate-limit → sign → log)
+- [ ] Unit 3: Route handler + page CTA
+
+**User:** Approved. Go.
+
+---
+
+**Agent:** `Routing: superpowers:executing-plans — plan approved, tasks are sequential`
+
+**Working on Unit 2:**
+
+`Routing: superpowers:test-driven-development — about to write implementation code`
+
+*[TDD skill fires]*
+
+```
+Writing test: authenticated user → returns signed URL manifest.
 Test fails: "downloadFlow is not defined."
 Implementing downloadFlow.
 Test passes.
 
 Writing test: anonymous user → 401.
-Test fails: expected 401, got undefined.
-Adding auth check.
-Test passes.
+Test fails. Adding auth check. Test passes.
 
 Writing test: rate-limited → 429.
-Test fails: expected 429.
-Adding rate-limit check.
-Test passes.
+Test fails. Adding rate-limit. Test passes.
+```
 
-Writing test: signing fails → 500.
-Test fails.
-Adding error handling.
-Test passes.
+`Routing: superpowers:verification-before-completion — about to claim unit done`
 
-Committing: "feat(web): download helper with entitlement + rate-limit"
+*[verification skill fires]*
 
-Writing route handler (Unit 3). No TDD — thin wrapper.
-Adding Download button to listing page.
-Manual check: button renders, links to /download.
-Committing: "feat(web): download route handler + page CTA"
+```
+Running: bun test lib/listings/download.test.ts
+Output: 4 pass, 0 fail
+Claim verified: Unit 2 tests pass.
+```
 
-All units done. Tests green. No uncommitted changes.
+Committing: "feat: download helper with entitlement + rate-limit"
+- [x] Unit 2 ✅
 
 ---
 
-## Phase 5: Review [MED]
-
-**Agent:**
-
-Reviewing diff (2 commits, 4 files changed):
-
-| # | Severity | File | Issue |
-|---|----------|------|-------|
-| 1 | P2 | download.ts:43 | Rate-limit off-by-one: `count > 5` permits 6 downloads. Should be `count >= 5`. |
-| 2 | P3 | download.ts:71 | Storage `.list()` is shallow — nested files excluded from manifest. |
-
-No P0/P1. Fixing P2:
-
-Changed `count > RATE_LIMIT` to `count >= RATE_LIMIT`.
-Test updated. Passes.
-Committing: "fix: rate-limit off-by-one in download endpoint"
-
-P3 noted for follow-up (nested file support).
-
-Gate passed: zero P0/P1.
+*[Units 1 + 3 complete via same routing...]*
 
 ---
 
-## Phase 6: Ship [CAVE]
+**Agent:** `Routing: superpowers:requesting-code-review — all units implemented`
 
-**Agent:**
+*[review skill fires: two-stage review]*
 
-Creating PR: "feat: download endpoint with rate-limiting"
-Body: signed-URL manifest for published listings, 5/day rate limit,
-auth-gated. 4 tests.
-Pushing. Merged.
+```
+Finding: P2 — rate-limit off-by-one (count > 5 permits 6 downloads)
+Fix: changed to count >= 5. Test updated. Passes.
+```
+
+`Routing: superpowers:verification-before-completion — about to claim review fixes done`
+
+```
+Running: bun test
+Output: 5 pass, 0 fail
+Claim verified: all tests pass after review fix.
+```
 
 ---
 
-*Total: 3 phases, ~20 minutes, 4 tests, 3 commits. The rate-limit
-off-by-one was caught in review — would have shipped to production
-without Phase 5.*
+**Agent:** `Routing: superpowers:finishing-a-development-branch — all tasks done`
+
+*[finishing skill fires]*
+
+```
+Tests: 5/5 pass ✓
+Options:
+1. Merge back to main
+2. Push and create PR
+3. Keep branch as-is
+4. Discard
+```
+
+**User:** Option 2.
+
+```
+Pushed. PR created: "feat: download endpoint with rate-limiting"
+```
+
+---
+
+**Skills invoked in this session:** 5 (writing-plans, executing-plans,
+test-driven-development ×3, verification-before-completion ×2,
+requesting-code-review, finishing-a-development-branch).
+
+**Skills that fired automatically via routing:** all of them. The user
+never typed a skill name. The routing table matched each trigger and
+the agent invoked the skill without being asked.
+
+**What would have happened WITHOUT the routing:** the agent would have
+written all the code in one shot without tests, claimed "done" without
+running the test suite, and pushed without review. The rate-limit
+off-by-one would have shipped to production.
