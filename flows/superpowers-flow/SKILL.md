@@ -40,7 +40,7 @@ or the workflow is violated.
 ## How to use
 
 1. Copy this entire Flow folder into your project (or reference it)
-2. Add the CLAUDE.md integration block from FLOW.md to your CLAUDE.md
+2. Add one line to your CLAUDE.md: `Read [path-to-this-flow]/FLOW.md at session start.`
 3. Work normally. The agent auto-routes to the right skill at each step.
 
 No additional plugin installation needed — the skills are bundled.

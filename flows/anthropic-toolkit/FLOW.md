@@ -17,34 +17,14 @@ When the routing table says "invoke [skill-name]":
 
 ## CLAUDE.md Integration
 
-Paste into your project's CLAUDE.md:
+Add one line to your project's CLAUDE.md:
 
-```markdown
-## Skill routing (Anthropic Toolkit)
-
-Read at session start: [path-to-this-flow]/FLOW.md
-
-When the user's task matches a trigger below, read and follow the
-corresponding skill. State your routing decision each turn.
-
-| Trigger | Read + follow |
-|---------|---------------|
-| Building a web UI, page, or component | skills/frontend-design/SKILL.md |
-| Testing a web app (Playwright, E2E, visual) | skills/webapp-testing/SKILL.md |
-| Building a self-contained web artifact (demo, widget, tool) | skills/web-artifacts-builder/SKILL.md |
-| Using the Claude API or Anthropic SDK | skills/claude-api/SKILL.md |
-| Building an MCP server or tools | skills/mcp-builder/SKILL.md |
-| Creating brand identity (colors, type, logo, voice) | skills/brand-guidelines/SKILL.md |
-| Drawing with HTML5 Canvas | skills/canvas-design/SKILL.md |
-| Generating a design system theme | skills/theme-factory/SKILL.md |
-| Creating generative/algorithmic art | skills/algorithmic-art/SKILL.md |
-| Making animated GIFs for Slack/chat | skills/slack-gif-creator/SKILL.md |
-| Drafting internal company communications | skills/internal-comms/SKILL.md |
-| Collaborative document writing | skills/doc-coauthoring/SKILL.md |
-| Creating a new Claude Code skill | skills/skill-creator/SKILL.md |
-
-Routing: [skill-name] — [reason]
 ```
+Read [path-to-this-flow]/FLOW.md at session start.
+```
+
+Replace `[path-to-this-flow]` with the actual path. All skill paths in
+this file are relative to FLOW.md's own directory.
 
 ---
 
@@ -53,14 +33,16 @@ Routing: [skill-name] — [reason]
 ```
 USER DESCRIBES WHAT THEY WANT TO BUILD
   │
-  ├─ Web UI / page / component / layout?
-  │   → skills/frontend-design/SKILL.md
+  ├─ Building something visual? → DISAMBIGUATE:
+  │   a) Production web page/component (HTML/CSS/JS, deployed app)?
+  │      → skills/frontend-design/SKILL.md
+  │   b) Self-contained claude.ai artifact / demo / widget (bundled, no server)?
+  │      → skills/web-artifacts-builder/SKILL.md
+  │   c) Static visual file — poster, certificate, infographic (PNG/PDF)?
+  │      → skills/canvas-design/SKILL.md
   │
   ├─ Test a web app (E2E, visual, Playwright)?
   │   → skills/webapp-testing/SKILL.md
-  │
-  ├─ Self-contained artifact (demo, widget, codepen-style)?
-  │   → skills/web-artifacts-builder/SKILL.md
   │
   ├─ Claude API / Anthropic SDK integration?
   │   → skills/claude-api/SKILL.md
@@ -69,14 +51,13 @@ USER DESCRIBES WHAT THEY WANT TO BUILD
   ├─ MCP server / MCP tools?
   │   → skills/mcp-builder/SKILL.md
   │
-  ├─ Brand identity / style guide / logo?
+  ├─ Apply Anthropic's brand palette/typography to an existing artifact?
   │   → skills/brand-guidelines/SKILL.md
+  │   (⚠ Applies Anthropic's specific colors + fonts, NOT for creating a new brand)
   │
-  ├─ Design system theme / tokens?
+  ├─ Apply a preset theme to a slide deck or document?
   │   → skills/theme-factory/SKILL.md
-  │
-  ├─ Canvas drawing / visualization?
-  │   → skills/canvas-design/SKILL.md
+  │   (⚠ 10 built-in slide/doc themes, NOT for CSS tokens or design system codegen)
   │
   ├─ Generative art / algorithmic visuals?
   │   → skills/algorithmic-art/SKILL.md
@@ -103,6 +84,28 @@ Some tasks benefit from multiple skills in sequence:
 - **"Create a Claude-powered feature"** → claude-api (integration) → frontend-design (UI) → webapp-testing (test)
 
 The agent reads each skill in sequence. Each skill's output feeds the next.
+
+**Cross-skill handoff** — before switching to the next skill in a
+sequence, record a brief scratchpad note:
+- Output files from the previous skill
+- Server command + port (if applicable)
+- Key variables the next skill needs
+
+This prevents the next skill from starting blind.
+
+---
+
+## Out of scope
+
+This toolkit does NOT cover:
+- Backend APIs, REST/GraphQL servers
+- Mobile apps (iOS, Android, React Native)
+- CLI tools, shell scripts, data pipelines
+- Infrastructure, DevOps, Kubernetes
+- Creating a brand identity from scratch (brand-guidelines applies Anthropic's brand only)
+- CSS design tokens / design system codegen (theme-factory themes slide decks only)
+
+For these, use Claude Code's built-in capabilities directly.
 
 ---
 

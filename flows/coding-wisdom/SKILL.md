@@ -1,7 +1,7 @@
 ---
 name: coding-wisdom
-description: 8 classic programming books distilled into agent-readable rules — Clean Code, Refactoring, DDD, DDIA, Pragmatic Programmer, Clean Architecture, Release It!, Legacy Code.
-version: 0.1.0
+description: 8 classic programming books distilled into agent-readable rules — Clean Code, Refactoring, DDD, DDIA, Pragmatic Programmer, Clean Architecture, Release It!, Legacy Code. Session-start cheat-sheet priming + on-demand full ruleset loading.
+version: 0.2.0
 license: MIT
 ---
 
@@ -10,32 +10,54 @@ license: MIT
 Eight classic programming books, distilled into rules your AI agent
 actually follows while coding.
 
-## Attribution
+## Architecture (v0.2)
 
-The rule files in `books/` are **not my creation**. They are the work
-of **Maciej Ciemborowicz** and contributors, from the
-[agent-rules-books](https://github.com/mattpocock/agent-rules-books)
-repository, licensed under the **MIT License** (see LICENSE).
+This Flow uses a **hybrid delivery model** designed around how attention
+mechanisms work:
 
-The original rulesets were written as AGENTS.md files. Flowy bundles
-them as a Flow with a FLOW.md router that loads the right ruleset
-based on what the agent is doing.
+1. **Session-start cheat-sheet** — 8 books × ~200 tokens of the most
+   important rules, inlined into CLAUDE.md. Stays in the high-attention
+   prefix zone for the entire session. Primes style decisions immediately.
+
+2. **On-demand full ruleset** — when a specific trigger fires (writing a
+   new function, refactoring, designing a data model), the agent reads the
+   FULL book file at that moment — adjacent to the task, maximum attention
+   weight, minimum token bloat.
+
+**Why not "load all rules at session start":** rules loaded at token 0 fall
+into the "lost in the middle" attention zone by turn 10–15. The v0.1 model
+consumed 8,800–14,600 tokens for near-zero influence. This model uses 1,600
+tokens default and adds full depth exactly when needed.
 
 ## The 8 books
 
-| Book | When the agent should follow it |
-|------|-------------------------------|
-| **Clean Code** (Robert C. Martin) | Writing new code — naming, functions, formatting |
-| **Refactoring** (Martin Fowler) | Changing existing code without breaking it |
-| **The Pragmatic Programmer** (Hunt & Thomas) | General engineering discipline + decision-making |
-| **Clean Architecture** (Robert C. Martin) | Structuring modules, boundaries, dependencies |
-| **Designing Data-Intensive Applications** (Kleppmann) | Data models, storage, distributed systems |
-| **Domain-Driven Design** (Eric Evans) | Modeling complex business domains |
-| **Working Effectively with Legacy Code** (Feathers) | Safely changing code without tests |
-| **Release It!** (Nygard) | Production readiness, stability patterns, deployment |
+| Book | Full file | On-demand trigger |
+|------|-----------|-------------------|
+| **Clean Code** (Martin) | `books/clean-code.md` | Writing new functions, classes, or modules |
+| **Refactoring** (Fowler) | `books/refactoring.md` | Changing existing code structure |
+| **The Pragmatic Programmer** (Hunt & Thomas) | `books/the-pragmatic-programmer.md` | Any significant engineering trade-off |
+| **Clean Architecture** (Martin) | `books/clean-architecture.md` | Module boundaries, dependency direction |
+| **Designing Data-Intensive Applications** (Kleppmann) | `books/designing-data-intensive-applications.md` | Data models, storage, distributed systems |
+| **Domain-Driven Design** (Evans) | `books/domain-driven-design.md` | Modeling complex business domains |
+| **Working Effectively with Legacy Code** (Feathers) | `books/working-effectively-with-legacy-code.md` | Touching untested code |
+| **Release It!** (Nygard) | `books/release-it.md` | Production readiness, resilience, deployment |
 
-## How to use
+## How to install
 
-1. Copy this Flow folder into your project
-2. Add the CLAUDE.md integration block from FLOW.md
-3. Code normally — the agent loads the right ruleset based on context
+1. Copy this Flow folder into your project (e.g. `flows/coding-wisdom/`).
+2. Open `FLOW.md` and copy the entire **"Session-start anchor"** code block
+   into your project's `CLAUDE.md`.
+3. The agent will prime the cheat-sheet rules on every session start.
+4. The routing table in `FLOW.md` tells the agent when to load each full
+   book on demand.
+
+## Attribution
+
+The rule files in `books/` are **not my creation**. They are the work of
+**Maciej Ciemborowicz** and contributors, from the
+[agent-rules-books](https://github.com/mattpocock/agent-rules-books)
+repository, licensed under the **MIT License** (see LICENSE).
+
+The original rulesets were written as AGENTS.md files. Flowy bundles them
+as a Flow with a FLOW.md router that loads the right ruleset based on what
+the agent is doing.

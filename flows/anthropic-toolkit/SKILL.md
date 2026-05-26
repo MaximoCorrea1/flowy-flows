@@ -32,9 +32,9 @@ What Flowy added: the `FLOW.md` routing document.
 | **Web Dev** | web-artifacts-builder | Create self-contained web artifacts |
 | **API** | claude-api | Build apps with the Claude API (8 language refs) |
 | **API** | mcp-builder | Build MCP servers and tools |
-| **Design** | brand-guidelines | Create brand identity systems |
+| **Design** | brand-guidelines | Apply Anthropic's brand (coral palette, Poppins/Lora) to artifacts — NOT for creating new brands |
 | **Design** | canvas-design | Design with HTML5 Canvas |
-| **Design** | theme-factory | Generate design system themes |
+| **Design** | theme-factory | Apply preset slide deck/document themes (10 built-in) — NOT for CSS design tokens |
 | **Creative** | algorithmic-art | Generate algorithmic/generative art |
 | **Creative** | slack-gif-creator | Create animated GIFs for Slack |
 | **Writing** | internal-comms | Draft internal company communications |

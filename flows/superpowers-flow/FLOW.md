@@ -26,53 +26,16 @@ are bundled right here.
 
 ## CLAUDE.md Integration
 
-**Paste this block into your project's CLAUDE.md** to activate the
-routing. The routing is live whenever this text is in the agent's
-context.
+**Add this single line to your project's CLAUDE.md** to activate routing:
 
-```markdown
-## Skill routing (Superpowers Flow)
-
-Read at session start: [path-to-this-flow]/FLOW.md
-
-The agent MUST check this routing table before every action. When a
-trigger matches, read and follow the corresponding skill file. Do NOT
-simulate the skill inline. Do NOT skip invocation. Do NOT rationalize
-("this is too simple" — invoke it anyway).
-
-### Routing table
-
-| Trigger | Read + follow |
-|---------|---------------|
-| New idea, feature, or unclear scope | skills/brainstorming/SKILL.md |
-| Spec approved, need implementation tasks | skills/writing-plans/SKILL.md |
-| Plan exists with unchecked tasks (serial) | skills/executing-plans/SKILL.md |
-| 3+ independent tasks (parallel) | skills/subagent-driven-development/SKILL.md |
-| About to write ANY implementation code | skills/test-driven-development/SKILL.md |
-| Something is broken, cause unclear | skills/systematic-debugging/SKILL.md |
-| About to claim work is "done" or "passing" | skills/verification-before-completion/SKILL.md |
-| Implementation complete, need review | skills/requesting-code-review/SKILL.md |
-| Received code review feedback | skills/receiving-code-review/SKILL.md |
-| All tasks done, branch ready to land | skills/finishing-a-development-branch/SKILL.md |
-| Need isolated parallel branches | skills/using-git-worktrees/SKILL.md |
-| Need ad-hoc parallel fan-out | skills/dispatching-parallel-agents/SKILL.md |
-| Want to create a custom skill | skills/writing-skills/SKILL.md |
-
-### Before every turn
-
-State your routing decision:
-  `Routing: [skill-name] — [one-line reason]`
-If no skill applies: `Routing: none — [reason]`
-
-### You are rationalizing if you think:
-
-- "This is too simple for brainstorming" → invoke it. 30 seconds.
-- "I already know the plan" → invoke writing-plans. Write it down.
-- "I'll write tests after" → invoke TDD. Tests first. Always.
-- "It obviously works" → invoke verification. Run the command.
-- "I can just fix this quickly" → invoke systematic-debugging. Evidence first.
-- "The review will be fine" → invoke requesting-code-review.
 ```
+Read [path-to-this-flow]/FLOW.md at session start.
+```
+
+Replace `[path-to-this-flow]` with the actual path to this directory
+(e.g., `flows/superpowers-flow`). The FLOW.md contains the full routing
+table — no need to copy anything else. The agent reads it fresh each
+session.
 
 ---
 
@@ -82,6 +45,10 @@ If no skill applies: `Routing: none — [reason]`
 
 ```
 USER MESSAGE RECEIVED
+  │
+  ├─ Session start / first message in a new session?
+  │   → skills/using-superpowers/SKILL.md
+  │   Note: fires ONCE to bootstrap skill awareness; skip on subsequent turns
   │
   ├─ New idea / feature / project?
   │   → skills/brainstorming/SKILL.md
@@ -131,12 +98,31 @@ USER MESSAGE RECEIVED
 
 ### Priority when multiple triggers match
 
+0. **Session bootstrap** — using-superpowers fires once at session start, before any other routing
 1. **Debugging** — broken takes precedence
 2. **Verification** — pending completion claims take precedence
 3. **TDD** — code-about-to-be-written takes precedence
 4. **Planning** — no plan = plan first
 5. **Brainstorming** — no design = design first
 6. Everything else in natural order
+
+### Before every turn
+
+State your routing decision:
+  `Routing: [skill-name] — [one-line reason]`
+If no skill applies: `Routing: none — [reason]`
+
+### You are rationalizing if you think:
+
+- "This is too simple for brainstorming" → invoke it. 30 seconds.
+- "I already know the plan" → invoke writing-plans. Write it down.
+- "I'll write tests after" → invoke TDD. Tests first. Always.
+- "It obviously works" → invoke verification. Run the command.
+- "I can just fix this quickly" → invoke systematic-debugging. Evidence first.
+- "The review will be fine" → invoke requesting-code-review.
+- "They just asked a question, no skill needed" → if writing code to answer it, TDD fires.
+- "I already invoked this skill earlier" → each task is a fresh invocation. Invoke again.
+- "I need to ask for clarification first" → brainstorming handles clarification. Route there.
 
 ### Skills that compose internally
 
@@ -150,6 +136,14 @@ Some skills invoke other skills as part of their workflow:
 
 The FLOW.md doesn't double-invoke. If you route to
 `subagent-driven-development`, TDD happens inside each worker.
+
+**Nested vs top-level invocation rule:**
+The routing table is for TOP-LEVEL routing only (the first skill you
+enter per action). When you are already inside a skill and that skill
+references another skill, follow the referenced skill inline — do NOT
+re-evaluate the routing table. Return to the outer skill when the inner
+skill completes. This prevents TDD and executing-plans from triggering
+each other in a loop.
 
 ---
 
@@ -188,6 +182,10 @@ SHIPPED
 | Small feature (<200 LOC) | writing-plans → executing-plans → verification → review → finish | brainstorming |
 | Refactor | writing-plans → executing-plans → review → finish | brainstorming |
 | Typo / config | fix → verification → finish | everything else |
+
+**When skipping brainstorming:** the user's initial message serves as
+the problem statement. `writing-plans` proceeds directly from that
+message — no design doc required. The plan IS the spec.
 
 ---
 
@@ -286,6 +284,11 @@ hypothesize → instrument → fix + regression test.
 **Gate:** root cause confirmed in writing before fix is attempted.
 
 **Skip for:** obvious typos, missing imports where the error names the fix.
+
+**If the broken code has no existing test coverage:** write the
+regression test as the FIRST step of the TDD phase —
+characterization-test-first, not red-green-refactor. Capture the
+current (broken) behavior in a failing test, then fix until it passes.
 
 ---
 
