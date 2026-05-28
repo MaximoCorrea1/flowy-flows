@@ -13,6 +13,29 @@ A Flow is a set of hand-picked skills + a `FLOW.md` routing document that makes 
 
 All seed Flows become available as `flowy:<flow-name>` in your Skill tool.
 
+## Verify your install
+
+After installing, confirm you have the official plugin:
+
+```
+/plugin list
+```
+
+Look for:
+```
+flowy@flowy-flows  →  github.com/MaximoCorrea1/flowy-flows
+```
+
+If the source URL is anything other than `github.com/MaximoCorrea1/flowy-flows`, you do NOT have the official Flowy plugin. Uninstall and reinstall from the canonical URL:
+
+```
+/plugin uninstall flowy@<other>
+/plugin marketplace add MaximoCorrea1/flowy-flows
+/plugin install flowy@flowy-flows
+```
+
+**There is no central registry.** Any GitHub user can publish a plugin named `flowy`. The `github.com/MaximoCorrea1/flowy-flows` URL is the only canonical source for the official V1 plugin.
+
 ## Use
 
 ```
@@ -32,7 +55,39 @@ Routing becomes mandatory for the session. Brainstorming fires before code. TDD 
 
 ## Enforce routing across context compaction
 
-Install the PreToolUse hook so routing persists even after the agent's context is compacted. See [flowy.dev/docs/hook](https://flowy.dev/docs/hook) or the hook section below.
+Install the PreToolUse hook so routing persists even after the agent's context is compacted.
+
+### Setup
+
+Add this to your `~/.claude/settings.json`:
+
+**Unix/macOS:**
+```json
+"hooks": {
+  "PreToolUse": [{
+    "matcher": "",
+    "hooks": [{
+      "type": "command",
+      "command": "cat \"$(pwd)/.flowy-state.json\" 2>/dev/null | python3 -c \"import json,sys; d=json.load(sys.stdin); print(json.dumps(d) if 'activeFlows' in d else '{}')\" 2>/dev/null || echo '{}'"
+    }]
+  }]
+}
+```
+
+**Windows (PowerShell):**
+```json
+"hooks": {
+  "PreToolUse": [{
+    "matcher": "",
+    "hooks": [{
+      "type": "command",
+      "command": "powershell -NoProfile -Command \"if (Test-Path (Join-Path $PWD '.flowy-state.json')) { $raw = Get-Content (Join-Path $PWD '.flowy-state.json') -Raw -Encoding UTF8; try { $parsed = $raw | ConvertFrom-Json; if ($parsed.activeFlows) { $raw } else { '{}' } } catch { '{}' } } else { '{}' }\""
+    }]
+  }]
+}
+```
+
+The hook reads `.flowy-state.json` from your project root and injects the active Flow state into the agent's context on every tool call. If the state file is missing or malformed, it outputs `{}` (fail-closed).
 
 ## Contributing
 
