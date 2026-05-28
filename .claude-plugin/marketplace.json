@@ -1,0 +1,20 @@
+{
+  "name": "flowy-flows",
+  "description": "Hand-picked Flows for Claude Code — goal-bound skill compositions with mandatory FLOW.md routing.",
+  "owner": {
+    "name": "Maximo Correa",
+    "email": "maximocorrearosas@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "flowy",
+      "description": "Curated library of goal-bound AI Flows with mandatory FLOW.md routing enforcement.",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "Maximo Correa",
+        "email": "maximocorrearosas@gmail.com"
+      }
+    }
+  ]
+}

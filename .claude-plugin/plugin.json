@@ -1,0 +1,20 @@
+{
+  "name": "flowy",
+  "description": "Curated library of goal-bound AI Flows. Each Flow bundles hand-picked skills with a FLOW.md routing document for mandatory enforcement.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Maximo Correa",
+    "email": "maximocorrearosas@gmail.com"
+  },
+  "homepage": "https://flowy.dev",
+  "repository": "https://github.com/MaximoCorrea1/flowy-flows",
+  "license": "CC-BY-SA-4.0",
+  "keywords": [
+    "flowy",
+    "flows",
+    "ai-agent",
+    "claude-code",
+    "skills",
+    "routing"
+  ]
+}
