@@ -18,7 +18,7 @@ flows/<slug>/
     └── example-session.md
 ```
 
-Read the [Flow Folder Standard](https://github.com/MaximoCorrea1/flowy/blob/main/docs/standards/flow-folder-standard.md) for the full spec.
+The Flow folder format is documented inline below — see "What a Flow is" above.
 
 ## Submission paths (V1)
 
@@ -52,6 +52,20 @@ Both paths go through the same review. PRs let you iterate publicly with feedbac
 - **The Flow solves one problem end-to-end** — not a grab bag of unrelated skills
 - **Domain credibility** — the creator has actual experience with the problem
 - **Quality bar held in public** — the PR thread + draft-listings queue are the audit log
+
+## Namespace ownership
+
+V1 uses one canonical plugin: `flowy@flowy-flows` at github.com/MaximoCorrea1/flowy-flows. This is the only official Flowy plugin.
+
+Post-V1 will allow per-creator plugin repos. Each creator's plugin is identified by their GitHub username, e.g., `cold-email@CreatorX`. Plugin names are NOT centrally registered — Claude Code's plugin system uses the GitHub repo path as the unique identifier.
+
+What this means for contributors:
+- V1: submit Flows here (this repo) or via in-app upload at flowy.dev. Approved Flows ship inside the canonical `flowy` plugin.
+- Post-V1: you can publish your own plugin repo. flowy.dev will list it on your creator profile and show the install command.
+
+What this means for users:
+- Always verify your install: `/plugin list` should show `flowy@flowy-flows` from `github.com/MaximoCorrea1/flowy-flows` (V1) or from a known creator's repo (post-V1).
+- Anyone publishing a plugin named `flowy` from a non-canonical URL is impersonating the official plugin. Report it to flowy.dev.
 
 ## What gets rejected
 

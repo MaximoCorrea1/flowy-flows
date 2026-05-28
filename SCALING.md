@@ -96,9 +96,10 @@ The plugin system + per-creator git repos is the entire distribution architectur
 If you publish a Flow that becomes popular enough to deserve its own plugin repo:
 
 1. Move `flows/<your-slug>/` from this repo to a new `<your-slug>` repo
-2. Add `.claude-plugin/` to the new repo
-3. Move the wrapper from `skills/<your-slug>/` in this repo to `skills/activate/` in the new repo
-4. flowy.dev updates the install command on the listing page
-5. The old bundled version stays in `flowy-flows` until users migrate (or we deprecate after a notice period)
+2. Rename the directory from `flows/<your-slug>/` to `flow/` (singular) to match the per-creator plugin convention shown above.
+3. Add `.claude-plugin/` to the new repo
+4. Move the wrapper from `skills/<your-slug>/` in this repo to `skills/activate/` in the new repo
+5. flowy.dev updates the install command on the listing page
+6. The old bundled version stays in `flowy-flows` until users migrate (or we deprecate after a notice period)
 
 No code changes needed — just file moves. The plugin system handles the rest.
