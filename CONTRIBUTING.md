@@ -85,7 +85,7 @@ Once merged here:
 
 ## Scaling
 
-This repo bundles hand-picked Flows for V1. As the catalog grows, individual Flows will become their own plugin repos so users can install just what they want.
+This repo bundles hand-picked Flows for V1. As the library grows, individual Flows will become their own plugin repos so users can install just what they want.
 
 See [SCALING.md](./SCALING.md) for the path from V1 (one plugin) to scale (per-creator plugins).
 

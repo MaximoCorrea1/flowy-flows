@@ -1,6 +1,6 @@
 ---
 name: superpowers-flow
-description: All 14 superpowers skills bundled with a FLOW.md router that auto-invokes the right skill at the right moment. Curated by Flowy.
+description: 14 superpowers skills. TDD, code review, debugging, verification — each fires at the right gate. Hand-picked by Flowy.
 ---
 
 # Activate superpowers-flow

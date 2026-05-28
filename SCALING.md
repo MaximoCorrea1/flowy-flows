@@ -86,7 +86,7 @@ The plugin system + per-creator git repos is the entire distribution architectur
 - Quality gate = creator review + community signals
 
 **Still being figured out:**
-- When to split: at what catalog size do we start moving Flows out of `flowy-flows` into their own repos? (Probably ~50, but TBD by usage)
+- When to split: at what library size do we start moving Flows out of `flowy-flows` into their own repos? (Probably ~50, but TBD by usage)
 - How to handle creator-paid Flows (V2 — needs Stripe Atlas)
 - Verification badges (V2 — needs payment underneath)
 - Cross-Flow dependencies (Flow A invokes Flow B?) — probably never

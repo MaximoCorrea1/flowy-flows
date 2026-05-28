@@ -126,6 +126,26 @@ Flow activated: <flow-name>
   Session: <session-id>
 ```
 
+### Step 6b: Hook self-check
+
+After confirming activation, verify the PreToolUse hook is working. The hook should inject `.flowy-state.json` content into your context before every tool call.
+
+Check: look at the system context for this turn. If you can see the JSON content of `.flowy-state.json` injected (i.e., the hook is delivering state), print:
+
+> ✓ Hook OK — routing will survive context compaction.
+
+If the JSON content is NOT visible in the injected context, OR if the injected payload is `{}` despite the state file having content, print:
+
+> ⚠ PreToolUse hook is not injecting state. Routing will NOT survive context compaction.
+>   See the README hook setup section. On Windows, use the PowerShell variant.
+>   On macOS/Linux, ensure `jq` is installed (`brew install jq` or `apt install jq`).
+
+If the hook is uncertain (state file just written, hook may not have fired yet), print:
+
+> ℹ Hook status unclear. If routing drops mid-session, check `~/.claude/settings.json` against the README.
+
+This self-check is the difference between the product silently failing (current v0.2.0 behavior) and being honest about its own enforcement contract.
+
 ### Step 7: Bootstrap (if defined and not already fired)
 
 Check the FLOW.md for a session-bootstrap step. For superpowers-flow, this is `using-superpowers`.

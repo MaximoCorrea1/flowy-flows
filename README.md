@@ -2,6 +2,8 @@
 
 The hand-picked library of goal-bound **Flows** for [Flowy](https://flowy.dev), shipped as a Claude Code plugin.
 
+> **Most AI agents have skills. None of them have a plan. Flowy Flows give the plan.**
+
 A Flow is a set of hand-picked skills + a `FLOW.md` routing document that makes them mandatory. The agent reads the FLOW.md, follows its decision tree, and fires the right skill at the right moment.
 
 ## Install
