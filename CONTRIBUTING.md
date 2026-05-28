@@ -1,6 +1,32 @@
 # Contributing to flowy-flows
 
-Thanks for wanting to add a Flow. This repo is the V1 home for hand-picked Flows that ship with the official `flowy` plugin.
+**Want to publish a Flow?** Start at **https://flowy.dev/create-a-flow**. It walks you through what a Flow is, why make one, how to clone the blueprint, and how to validate before submitting.
+
+This file is the **file-level format reference** for git-native contributors who want to PR directly. If you've never made a Flow, the web guide is faster.
+
+---
+
+## Quick start
+
+1. Browse `flows/_blueprint/` for the canonical reference structure.
+2. Validate your Flow at https://flowy.dev/create-a-flow/validate before submitting.
+3. Submit via in-app upload at https://flowy.dev/me/flows/new OR open a PR to this repo.
+
+---
+
+## Blueprint version compatibility
+
+The canonical starter Flow lives at `flows/_blueprint/` and is versioned via `flows/_blueprint/BLUEPRINT_VERSION`.
+
+If you forked the blueprint at an earlier version, check the current version to see what changed:
+
+```bash
+cat flows/_blueprint/BLUEPRINT_VERSION  # current version
+```
+
+The format itself is backward compatible. Version bumps signal added optional fields, improved examples, or clarified guidance — never breaking changes to required fields.
+
+---
 
 ## What a Flow is
 
