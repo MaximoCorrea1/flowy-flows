@@ -32,12 +32,13 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -89,6 +90,37 @@ function runHook(opts: {
     stdout: res.stdout ?? "",
     stderr: res.stderr ?? "",
   };
+}
+
+/**
+ * Async variant of runHook for concurrency tests. Spawns the hook without
+ * blocking, returns a promise that resolves with code/stdout/stderr. Used to
+ * fire two near-simultaneous invocations at the same PENDING file (Fix 1).
+ */
+function runHookAsync(opts: {
+  projectDir: string;
+  pluginRoot: string;
+  stdin: string;
+}): Promise<{ code: number; stdout: string; stderr: string }> {
+  if (!GIT_BASH) {
+    throw new Error("Git Bash not found — test should have been skipped");
+  }
+  return new Promise((resolve) => {
+    const child = spawn(GIT_BASH, [SCRIPT], {
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: opts.projectDir,
+        CLAUDE_PLUGIN_ROOT: opts.pluginRoot,
+      },
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (c) => (stdout += c.toString()));
+    child.stderr.on("data", (c) => (stderr += c.toString()));
+    child.on("close", (code) => resolve({ code: code ?? -1, stdout, stderr }));
+    child.stdin.write(opts.stdin);
+    child.stdin.end();
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -512,5 +544,281 @@ d("flowy-inject.sh", () => {
     expect(r.stdout).toContain("Flowy routing ACTIVE");
     // No literal "%s" survives, and printf did not mangle output.
     expect(r.stdout).not.toContain("%s");
+  });
+
+  // =========================================================================
+  // HARDENING (v0.4.1) — ce:review findings.
+  // =========================================================================
+
+  // -------------------------------------------------------------------------
+  // SYMLINKED STATE FILE — an attacker-planted symlink at the state path could
+  // make the hook read an arbitrary file into the agent's context. The hook
+  // must reject it: `[ ! -L "$STATE" ]` guard → no-op. (Fix 4.)
+  //
+  // Symlink creation on Windows requires Developer Mode or admin; if it throws
+  // (EPERM), we skip loudly rather than pass vacuously.
+  // -------------------------------------------------------------------------
+  test("symlinked state file → no-op (NOT read), exit 0", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+
+    // The symlink TARGET is a real, valid flowy-state file living OUTSIDE
+    // .flowy/. If the hook followed the link it would emit a banner.
+    const outside = join(projectDir, "outside-state.json");
+    writeFileSync(
+      outside,
+      JSON.stringify(
+        {
+          schema: "flowy-state-v1",
+          sessionId: "A",
+          activeFlows: [
+            {
+              name: "superpowers-flow",
+              flowRef: "flows/superpowers-flow/FLOW.md",
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+
+    const statePath = join(projectDir, ".flowy", "state-A.json");
+    try {
+      symlinkSync(outside, statePath);
+    } catch (e) {
+      console.warn(
+        `[SKIP] cannot create symlink (need Developer Mode/admin on Windows): ${String(e)}`,
+      );
+      return;
+    }
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    // The symlinked file was NOT read into context: no banner.
+    expect(r.stdout).not.toContain("Flowy routing ACTIVE");
+    expect(r.stdout.trim()).toBe("");
+  });
+
+  // -------------------------------------------------------------------------
+  // GIANT STATE FILE (>64KB) — a pathological/corrupt giant state file must not
+  // stall every prompt. The hook size-caps before `cat`. (Fix 3.)
+  // -------------------------------------------------------------------------
+  test("state file larger than 64KB → no-op, exit 0, fast", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+
+    // Valid-looking JSON head, then a giant comment-ish padding pushing the
+    // file well past the 64KB cap. Even though it contains a resolving flow,
+    // the size guard must short-circuit BEFORE reading it.
+    const head = JSON.stringify({
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" },
+      ],
+    });
+    const giant = head + "\n" + "x".repeat(70 * 1024); // ~70KB > 64KB
+    writeState(projectDir, "A", giant);
+
+    const start = Date.now();
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+    const elapsed = Date.now() - start;
+
+    expect(r.code).toBe(0);
+    expect(r.stdout.trim()).toBe("");
+    // Fast: the cap fires before any expensive parse. Generous ceiling to
+    // tolerate process-spawn overhead on a loaded CI box.
+    expect(elapsed).toBeLessThan(5000);
+  });
+
+  // -------------------------------------------------------------------------
+  // FLOWREF WITH SHELL METACHARS / BACKSLASH — a crafted flowRef must be dropped
+  // by the charset allowlist BEFORE it is used in `[ -f "$PLUGIN_ROOT/$REF" ]`.
+  // The hook then falls through to name-based auto-repair. (Fix 5.)
+  // -------------------------------------------------------------------------
+  test("flowRef with backslash → dropped, name auto-repairs, banner, exit 0", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    // Canonical name-based location resolves, so after the bad ref is dropped
+    // the flow still goes LIVE via auto-repair.
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+    writeState(projectDir, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [
+        {
+          name: "superpowers-flow",
+          flowRef: "flows\\..\\..\\windows\\system32\\drivers\\etc\\hosts",
+        },
+      ],
+    });
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("Flowy routing ACTIVE");
+    expect(r.stdout).toContain("superpowers-flow");
+  });
+
+  test("flowRef with shell metachars and NO valid name → corrupt, exit 0", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    // No canonical FLOW.md for this name, AND the ref is dropped by the charset
+    // guard → unresolvable → corrupt warning, still exit 0.
+    writeState(projectDir, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [
+        {
+          name: "ghost-flow",
+          flowRef: "flows/$(rm -rf /);echo/FLOW.md",
+        },
+      ],
+    });
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    expect(r.code).not.toBe(2);
+    expect(r.stdout).toContain("unreadable");
+    expect(r.stdout).toContain("ghost-flow");
+  });
+
+  // -------------------------------------------------------------------------
+  // CONCURRENT CLAIM (Fix 1) — two near-simultaneous invocations with the SAME
+  // session_id and a single PENDING present. Exactly one claims it; both exit
+  // 0; neither errors. The claim is serialized (mkdir lock), so there is no
+  // lost-update / wrong-session grab.
+  // -------------------------------------------------------------------------
+  test("two concurrent invocations + one PENDING → both exit 0, no error", async () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+    writeState(projectDir, "PENDING", {
+      schema: "flowy-state-v1",
+      sessionId: "PENDING",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" },
+      ],
+    });
+
+    const [r1, r2] = await Promise.all([
+      runHookAsync({ projectDir, pluginRoot, stdin: stdinFor("A") }),
+      runHookAsync({ projectDir, pluginRoot, stdin: stdinFor("A") }),
+    ]);
+
+    expect(r1.code).toBe(0);
+    expect(r2.code).toBe(0);
+    // PENDING was claimed into state-A.json (exactly once); the shared PENDING
+    // no longer exists.
+    expect(existsSync(join(projectDir, ".flowy", "state-A.json"))).toBe(true);
+    expect(existsSync(join(projectDir, ".flowy", "state-PENDING.json"))).toBe(
+      false,
+    );
+    // No leftover lock dir wedging future turns.
+    expect(existsSync(join(projectDir, ".flowy", ".claim.lock"))).toBe(false);
+  });
+
+  // -------------------------------------------------------------------------
+  // HELD LOCK MUST NOT WEDGE (Fix 1) — if a stale `.claim.lock` dir is present
+  // (e.g. a prior crash), the hook must still exit 0 and NOT hang. It simply
+  // skips claiming this turn (one-turn-late is acceptable; never-block is not).
+  // -------------------------------------------------------------------------
+  test("pre-existing .claim.lock dir → hook still exits 0, does not hang", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+    writeState(projectDir, "PENDING", {
+      schema: "flowy-state-v1",
+      sessionId: "PENDING",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" },
+      ],
+    });
+    // Pre-create the lock so mkdir fails for this invocation.
+    mkdirSync(join(projectDir, ".flowy", ".claim.lock"), { recursive: true });
+
+    const start = Date.now();
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+    const elapsed = Date.now() - start;
+
+    expect(r.code).toBe(0);
+    // Did not hang on the held lock.
+    expect(elapsed).toBeLessThan(5000);
+    // It did not claim PENDING (lock held), but also did not error/block.
+    // state-A.json should NOT exist (claim skipped); PENDING remains for a
+    // future turn. Either way: exit 0, no crash.
+    expect(existsSync(join(projectDir, ".flowy", "state-PENDING.json"))).toBe(
+      true,
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // CORRUPT NAME CONTAINING A DOT (Fix 6) — an unresolvable flow whose name has
+  // a dot (e.g. "flow.v2") must produce EXACTLY ONE clean warning line with the
+  // name intact — not split on the dot by a fragile IFS=', ' loop.
+  // -------------------------------------------------------------------------
+  test("corrupt flow name with a dot → exactly one warning line, name intact", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    // No FLOW.md → unresolvable → corrupt path.
+    writeState(projectDir, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [{ name: "flow.v2", flowRef: "flows/flow.v2/FLOW.md" }],
+    });
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("unreadable");
+    // The dotted name survives whole.
+    expect(r.stdout).toContain("flow.v2");
+    // Exactly ONE warning line (not split into "flow" + "v2").
+    const warningLines = r.stdout
+      .split("\n")
+      .filter((l) => l.includes("unreadable"));
+    expect(warningLines.length).toBe(1);
+    // And it must not have emitted a bare "flow" or "v2" token as its own line.
+    expect(r.stdout).not.toContain("for flow is unreadable");
+    expect(r.stdout).not.toContain("for v2 is unreadable");
+  });
+
+  // -------------------------------------------------------------------------
+  // SYMLINKED PENDING (Fix 4) — a symlinked PENDING must not be claimed (would
+  // mv an attacker-controlled link target into a session state path).
+  // -------------------------------------------------------------------------
+  test("symlinked PENDING → not claimed, exit 0", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+
+    const outside = join(projectDir, "outside-pending.json");
+    writeFileSync(
+      outside,
+      JSON.stringify({
+        schema: "flowy-state-v1",
+        sessionId: "PENDING",
+        activeFlows: [
+          {
+            name: "superpowers-flow",
+            flowRef: "flows/superpowers-flow/FLOW.md",
+          },
+        ],
+      }),
+    );
+    const pendingPath = join(projectDir, ".flowy", "state-PENDING.json");
+    try {
+      symlinkSync(outside, pendingPath);
+    } catch (e) {
+      console.warn(
+        `[SKIP] cannot create symlink (need Developer Mode/admin on Windows): ${String(e)}`,
+      );
+      return;
+    }
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    // The symlinked PENDING was NOT claimed into state-A.json.
+    expect(existsSync(join(projectDir, ".flowy", "state-A.json"))).toBe(false);
+    // No banner (nothing legit to read).
+    expect(r.stdout.trim()).toBe("");
   });
 });
