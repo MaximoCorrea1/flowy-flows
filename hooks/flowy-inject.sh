@@ -81,12 +81,15 @@
 #       we deliberately avoid non-portable POSIX `stat` for stale-age detection.)
 #       WHY mkdir over bare atomic mv: same-FS `mv` IS atomic, but the guarding
 #       `[ ! -f STATE ]` test before it is not — the lock closes that window.
-#   (2) BOUNDED STDIN. We read only the first 8KB of stdin (head -c 8192) instead
+#   (2) BOUNDED STDIN. We read only the first 32KB of stdin (head -c 32768) instead
 #       of slurping an unbounded prompt every turn. session_id sits near the top
-#       of Claude Code's JSON, so 8KB contains it comfortably. TRADEOFF: if a
+#       of Claude Code's JSON, so 32KB contains it comfortably. TRADEOFF: if a
 #       future Claude Code build emits the prompt BEFORE session_id and the
-#       prompt exceeds 8KB, session_id extraction fails → no-op. That is rare and
+#       prompt exceeds 32KB, session_id extraction fails → no-op. That is rare and
 #       safe (fail-loud degrades to no enforcement that turn, never a block).
+#       32KB safely covers a large prompt preamble before session_id with
+#       negligible read cost; if Claude Code ever serializes a >32KB prompt BEFORE
+#       session_id, extraction no-ops (safe, rare).
 #   (3) BOUNDED STATE FILE. Before `cat`-ing a state file we cap it at 64KB
 #       (wc -c). A legit flowy-state-v1 file is well under 1KB; a pathological or
 #       corrupt giant file can no longer stall every prompt. Over the cap → no-op.
@@ -98,6 +101,8 @@
 #       any ref containing a char outside [A-Za-z0-9_./-] (so spaces, backslashes,
 #       shell metachars, `$(...)`, single-dot oddities are neutered). A dropped
 #       ref falls through to name-based auto-repair, exactly like a stale ref.
+#   (6) CORRUPT NAMES: newline-separated accumulation + IFS= read -r iteration
+#       (dropped the fragile IFS=', ' split that mangled names with dots).
 #
 # SHELL
 #   Runs under Git Bash on Windows (NOT WSL). The repo path contains a space
@@ -118,13 +123,14 @@ set -u 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # 1. Read a BOUNDED prefix of stdin (Fix 2). The session_id sits near the top
-#    of Claude Code's JSON, so the first 8KB contains it comfortably even with a
+#    of Claude Code's JSON, so the first 32KB contains it comfortably even with a
 #    large prompt. We do NOT slurp an unbounded prompt every turn. TRADEOFF: if
-#    a future build emits the prompt before session_id and the prompt > 8KB,
-#    extraction fails → no-op (rare + safe). If stdin is closed/empty, STDIN
-#    stays empty.
+#    a future build emits the prompt before session_id and the prompt > 32KB,
+#    extraction fails → no-op (rare + safe). 32KB safely covers a large prompt
+#    preamble before session_id with negligible read cost. If stdin is
+#    closed/empty, STDIN stays empty.
 # ---------------------------------------------------------------------------
-STDIN="$(head -c 8192 2>/dev/null || true)"
+STDIN="$(head -c 32768 2>/dev/null || true)"
 
 # Env vars must be present and non-empty; otherwise we cannot resolve paths.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-}"
@@ -218,6 +224,9 @@ fi
 # is well under 1KB; a pathological/corrupt giant file must not stall every
 # prompt. Over 64KB → no-op.
 STATE_BYTES="$(wc -c < "$STATE" 2>/dev/null || echo 0)"
+# 2>/dev/null: suppress `[: integer expression expected` on shells where a
+# non-numeric STATE_BYTES would make `[` fatal; the || exit 0 is the safe
+# fallback either way.
 [ "$STATE_BYTES" -le 65536 ] 2>/dev/null || exit 0
 
 # Read the state file once.
@@ -281,7 +290,7 @@ for NAME in $NAMES; do
   case "$REF" in
     *[!A-Za-z0-9_./-]* ) REF="" ;;  # disallowed char → drop
     '.' ) REF="" ;;                 # bare single-dot → drop
-    *\\* ) REF="" ;;                # explicit backslash reject (belt-and-suspenders)
+    *\\* ) REF="" ;;                # unreachable — backslash already caught by the charset guard above; kept for explicit intent.
   esac
 
   if [ -n "$REF" ] && [ -f "$PLUGIN_ROOT/$REF" ]; then

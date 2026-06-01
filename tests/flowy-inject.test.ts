@@ -686,11 +686,16 @@ d("flowy-inject.sh", () => {
 
   // -------------------------------------------------------------------------
   // CONCURRENT CLAIM (Fix 1) — two near-simultaneous invocations with the SAME
-  // session_id and a single PENDING present. Exactly one claims it; both exit
-  // 0; neither errors. The claim is serialized (mkdir lock), so there is no
-  // lost-update / wrong-session grab.
+  // session_id and a single PENDING present. Both exit 0; the PENDING is
+  // claimed into state-A.json exactly once; no leftover lock dir remains.
+  //
+  // NOTE: bash.exe startup latency on Windows means the two processes do not
+  // truly race on mkdir — one typically finishes before the other starts. This
+  // test therefore asserts post-conditions (idempotent claim, no lock residue)
+  // rather than true mkdir contention. The held-lock test above is the stronger
+  // proxy for the losing-process path (pre-existing lock → skip + exit 0).
   // -------------------------------------------------------------------------
-  test("two concurrent invocations + one PENDING → both exit 0, no error", async () => {
+  test("two near-simultaneous invocations both exit 0 + claim is idempotent (real mkdir contention is covered by the held-lock test)", async () => {
     const { projectDir, pluginRoot } = freshDirs();
     writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
     writeState(projectDir, "PENDING", {
