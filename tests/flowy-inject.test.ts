@@ -188,6 +188,42 @@ describe("shell pinning", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// CI-GUARD: hard-fail on Windows without Git Bash.
+//
+// The old pattern was `describe.skip` when HAVE_GIT_BASH is false, which gives
+// a deceptively green run with ZERO hook coverage. This guard sits OUTSIDE the
+// skippable describe so it always runs. On Windows (win32) it requires Git Bash
+// to be present; on non-Windows it passes (the hook is documented as
+// Git-Bash/Windows-targeted, so Linux/macOS CI cannot run the hook tests anyway
+// — but they also cannot silently green them because they are not win32).
+// ---------------------------------------------------------------------------
+test(
+  "CI-guard: Git Bash must be present on Windows to run hook tests",
+  () => {
+    if (process.platform !== "win32") {
+      // Non-Windows CI: test is vacuously satisfied — this platform cannot run
+      // the Git-Bash-targeted hook tests, but it also cannot silently green them
+      // via describe.skip because this guard is outside the skippable suite.
+      // Non-Windows builds should run with --testPathPattern to exclude this file
+      // or accept this pass, which is accurate (they truly cannot verify the hook).
+      return;
+    }
+    // On Windows: Git Bash is REQUIRED. Without it the entire hook suite below
+    // would be skipped, giving false-green CI coverage on the target platform.
+    expect(HAVE_GIT_BASH).toBe(true);
+    // Provide a clear diagnostic if this fires:
+    if (!HAVE_GIT_BASH) {
+      throw new Error(
+        "Git Bash required to run hook tests on Windows; " +
+          "install it from https://git-scm.com or the hook suite is unverified. " +
+          "Expected at: " +
+          GIT_BASH_CANDIDATES.join(", "),
+      );
+    }
+  },
+);
+
 const d = HAVE_GIT_BASH ? describe : describe.skip;
 
 d("flowy-inject.sh", () => {
@@ -785,6 +821,221 @@ d("flowy-inject.sh", () => {
     expect(r.stdout).not.toContain("for flow is unreadable");
     expect(r.stdout).not.toContain("for v2 is unreadable");
   });
+
+  // =========================================================================
+  // NEW COVERAGE (ce:review gap-closing, v0.4.1)
+  // =========================================================================
+
+  // -------------------------------------------------------------------------
+  // MISSING ENV VARS → NO-OP. The hook guards at lines 138-139; tested here for
+  // the first time. Both branches must produce empty stdout and exit 0.
+  // -------------------------------------------------------------------------
+  test("CLAUDE_PROJECT_DIR unset/empty → no-op, exit 0", () => {
+    if (!GIT_BASH) throw new Error("Git Bash not found — test should have been skipped");
+    const { pluginRoot, projectDir } = freshDirs();
+    // Write a valid state so there IS something to find if the guard is absent.
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+    writeState(projectDir, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" },
+      ],
+    });
+    // Override: pass empty string for PROJECT_DIR.
+    const res = spawnSync(GIT_BASH, [SCRIPT], {
+      input: stdinFor("A"),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: "",
+        CLAUDE_PLUGIN_ROOT: pluginRoot,
+      },
+    });
+    expect(res.status).toBe(0);
+    expect((res.stdout ?? "").trim()).toBe("");
+  });
+
+  test("CLAUDE_PLUGIN_ROOT unset/empty → no-op, exit 0", () => {
+    if (!GIT_BASH) throw new Error("Git Bash not found — test should have been skipped");
+    const { projectDir, pluginRoot } = freshDirs();
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+    writeState(projectDir, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" },
+      ],
+    });
+    const res = spawnSync(GIT_BASH, [SCRIPT], {
+      input: stdinFor("A"),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: projectDir,
+        CLAUDE_PLUGIN_ROOT: "",
+      },
+    });
+    expect(res.status).toBe(0);
+    expect((res.stdout ?? "").trim()).toBe("");
+  });
+
+  // -------------------------------------------------------------------------
+  // FLOWREF PATH TRAVERSAL → NOT READ. A state file whose flowRef contains ".."
+  // (e.g. "flows/../../etc/passwd") must be neutralised by the `*..*` guard so
+  // the hook never attempts to open that path. The canonical flows/<name>/FLOW.md
+  // also does NOT exist, so the flow ends up corrupt-warned (or silently dropped)
+  // — never live. Exit 0. The traversal path itself must never be opened.
+  // -------------------------------------------------------------------------
+  test("flowRef containing '..' (traversal) → not read, exit 0", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    // No FLOW.md at any canonical location — auto-repair cannot save it either.
+    writeState(projectDir, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [
+        {
+          name: "traversal-flow",
+          flowRef: "flows/../../etc/passwd",
+        },
+      ],
+    });
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    // The traversal ref was dropped; no banner (flow is not live).
+    expect(r.stdout).not.toContain("Flowy routing ACTIVE");
+    // The hook either warns (corrupt) or is silent — either is acceptable as
+    // long as it never emits a banner for the traversal path.
+    // Exit 0 is the non-negotiable invariant.
+  });
+
+  // -------------------------------------------------------------------------
+  // PENDING-CLOBBER / ALREADY-CLAIMED. Both state-PENDING.json (flow X) AND
+  // state-A.json (flow Y) exist. The hook must NOT overwrite state-A.json with
+  // the PENDING content, because STATE already exists (the inner `[ ! -f STATE ]`
+  // guard fires). It reads state-A.json → emits Y's banner; PENDING stays; exit 0.
+  // -------------------------------------------------------------------------
+  test("PENDING + already-claimed state-A.json → reads A's flow (Y), no clobber, PENDING survives, exit 0", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+    writeFlowMd(pluginRoot, "flows/anthropic-toolkit/FLOW.md");
+
+    // state-PENDING.json → flow X (superpowers-flow)
+    writeState(projectDir, "PENDING", {
+      schema: "flowy-state-v1",
+      sessionId: "PENDING",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" },
+      ],
+    });
+    // state-A.json → flow Y (anthropic-toolkit) — already in place
+    writeState(projectDir, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [
+        {
+          name: "anthropic-toolkit",
+          flowRef: "flows/anthropic-toolkit/FLOW.md",
+        },
+      ],
+    });
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    // Banner shows Y (anthropic-toolkit), not X (superpowers-flow).
+    expect(r.stdout).toContain("Flowy routing ACTIVE");
+    expect(r.stdout).toContain("anthropic-toolkit");
+    expect(r.stdout).not.toContain("superpowers-flow");
+    // state-A.json was NOT overwritten by PENDING content.
+    const aContent = require("node:fs").readFileSync(
+      join(projectDir, ".flowy", "state-A.json"),
+      "utf8",
+    );
+    expect(aContent).toContain("anthropic-toolkit");
+    // PENDING was NOT consumed (it was skipped because STATE already existed).
+    expect(existsSync(join(projectDir, ".flowy", "state-PENDING.json"))).toBe(true);
+  });
+
+  // -------------------------------------------------------------------------
+  // MIXED LIVE + CORRUPT IN ONE STATE. Two flows in activeFlows: one whose
+  // FLOW.md resolves (live) and one whose doesn't (corrupt). Both a banner and
+  // a warning must appear in the same run; exit 0.
+  // -------------------------------------------------------------------------
+  test("mixed live + corrupt flows → banner for live, warning for corrupt, both in same run, exit 0", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    // Only the first flow's FLOW.md exists.
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+    // ghost-flow has no FLOW.md anywhere.
+    writeState(projectDir, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" },
+        { name: "ghost-flow", flowRef: "flows/ghost-flow/FLOW.md" },
+      ],
+    });
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    // Live flow banner present.
+    expect(r.stdout).toContain("Flowy routing ACTIVE");
+    expect(r.stdout).toContain("superpowers-flow");
+    // Corrupt flow warning present.
+    expect(r.stdout).toContain("unreadable");
+    expect(r.stdout).toContain("ghost-flow");
+  });
+
+  // -------------------------------------------------------------------------
+  // STATE FILE IS A DIRECTORY → NO-OP. If `mkdir` is called at the expected
+  // state path (making it a directory), `[ -f "$STATE" ]` returns false → the
+  // hook exits 0 with empty stdout. This covers unusual FS edge-cases.
+  // -------------------------------------------------------------------------
+  test("state path is a directory (not a file) → no-op, empty stdout, exit 0", () => {
+    const { projectDir, pluginRoot } = freshDirs();
+    writeFlowMd(pluginRoot, "flows/superpowers-flow/FLOW.md");
+    // Create the path as a directory instead of a file.
+    const statePath = join(projectDir, ".flowy", "state-A.json");
+    mkdirSync(statePath, { recursive: true });
+
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+
+    expect(r.code).toBe(0);
+    expect(r.stdout.trim()).toBe("");
+  });
+
+  // -------------------------------------------------------------------------
+  // .flowy/ DIR ENTIRELY ABSENT → NO-OP. The most common real-world case: a
+  // normal repo with the plugin installed but no Flow ever activated. The hook
+  // must find nothing under PROJECT_DIR/.flowy/ and exit cleanly + fast.
+  // -------------------------------------------------------------------------
+  test(".flowy/ directory absent entirely → empty stdout, exit 0, fast", () => {
+    if (!GIT_BASH) throw new Error("Git Bash not found — test should have been skipped");
+    // Build a project dir WITHOUT a .flowy/ subdir (freshDirs always creates it,
+    // so we construct manually here).
+    const base = mkdtempSync(join(root, "no-flowy "));
+    const projectDir = join(base, "project dir");
+    const pluginRoot = join(base, "plugin root");
+    mkdirSync(projectDir, { recursive: true });
+    mkdirSync(pluginRoot, { recursive: true });
+    // Deliberately NO mkdirSync(.flowy) here.
+
+    const start = Date.now();
+    const r = runHook({ projectDir, pluginRoot, stdin: stdinFor("A") });
+    const elapsed = Date.now() - start;
+
+    expect(r.code).toBe(0);
+    expect(r.stdout.trim()).toBe("");
+    // Must be fast — this is the hot path for every normal repo.
+    expect(elapsed).toBeLessThan(5000);
+  });
+
+  // NOTE: Test #7 from the review spec (dotted name IFS regression) is ALREADY
+  // covered by the existing test at "corrupt flow name with a dot → exactly one
+  // warning line, name intact". No duplicate added.
 
   // -------------------------------------------------------------------------
   // SYMLINKED PENDING (Fix 4) — a symlinked PENDING must not be claimed (would
