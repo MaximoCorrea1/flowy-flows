@@ -35,14 +35,19 @@
 #       ]
 #     }
 #
-#   Deliberately flat + line-oriented so we can parse it with grep/sed and NO
-#   jq/python/node. Parsing rules:
+#   Deliberately flat so we can parse it with grep/sed and NO jq/python/node.
+#   The parser is LINE-ORIENTED: it requires each `"name": "..."` and
+#   `"flowRef": "..."` key-value pair to appear on a single line. This holds
+#   for minified single-line JSON AND for standard pretty-printed JSON (one
+#   key per line). It breaks only if a key is split across lines or a value
+#   contains an escaped quote (`\"`) — both of which the activator must avoid.
+#   Parsing rules:
 #     * "active" = file exists AND contains "activeFlows" AND >=1 "name": entry.
 #     * `flowRef` is a CLAUDE_PLUGIN_ROOT-relative path (version-agnostic, NOT
 #       an absolute cache path). The live FLOW.md is "$CLAUDE_PLUGIN_ROOT"/<ref>.
-#     * Each active flow is one `{ "name": ..., "flowRef": ... }` line/pair.
-#       We read names and flowRefs positionally (the activator writes them in
-#       lockstep order, one object per array element).
+#     * We read names and flowRefs positionally: the activator writes them in
+#       lockstep order (name then flowRef, one pair per array element), so the
+#       Nth name pairs with the Nth flowRef.
 #
 # RESOLUTION + AUTO-REPAIR (per flow)
 #   1. Try "$CLAUDE_PLUGIN_ROOT"/<flowRef>. If it exists → live.
@@ -90,7 +95,8 @@ SESSION_ID="$(
   printf '%s' "$STDIN" \
     | grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' \
     | head -n 1 \
-    | sed 's/.*:[[:space:]]*"//; s/"$//'
+    | sed 's/.*:[[:space:]]*"//; s/"$//' \
+    | tr -d '\r'
 )"
 
 # Allowlist: 1-128 chars of [A-Za-z0-9_-]. Reject everything else (traversal,
@@ -157,12 +163,14 @@ printf '%s' "$STATE_CONTENT" | grep -q '"name"[[:space:]]*:' || exit 0
 NAMES="$(
   printf '%s' "$STATE_CONTENT" \
     | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' \
-    | sed 's/.*:[[:space:]]*"//; s/"$//'
+    | sed 's/.*:[[:space:]]*"//; s/"$//' \
+    | tr -d '\r'
 )"
 REFS="$(
   printf '%s' "$STATE_CONTENT" \
     | grep -o '"flowRef"[[:space:]]*:[[:space:]]*"[^"]*"' \
-    | sed 's/.*:[[:space:]]*"//; s/"$//'
+    | sed 's/.*:[[:space:]]*"//; s/"$//' \
+    | tr -d '\r'
 )"
 
 [ -n "$NAMES" ] || exit 0
@@ -207,17 +215,27 @@ for NAME in $NAMES; do
     esac
   fi
 
+  # SANITIZE FOR OUTPUT. The banner/warning is injected verbatim into the
+  # agent's CONTEXT, so a hand-edited/garbage state-file name could otherwise
+  # smuggle misleading text (e.g. a fake "Routing:" directive) into context.
+  # Strip NAME to the same charset we already trust for paths. Legit flow
+  # names are slug-format ([a-z0-9-]) so this is lossless for every real flow;
+  # it only neuters crafted names. A name that strips to empty becomes an
+  # obviously-harmless literal placeholder, never injected text.
+  SAFE_NAME="$(printf '%s' "$NAME" | sed 's/[^A-Za-z0-9_.-]//g')"
+  [ -n "$SAFE_NAME" ] || SAFE_NAME="[invalid-name]"
+
   if [ -n "$RESOLVED" ]; then
     if [ -z "$LIVE_NAMES" ]; then
-      LIVE_NAMES="$NAME"
+      LIVE_NAMES="$SAFE_NAME"
     else
-      LIVE_NAMES="$LIVE_NAMES, $NAME"
+      LIVE_NAMES="$LIVE_NAMES, $SAFE_NAME"
     fi
   else
     if [ -z "$CORRUPT_NAMES" ]; then
-      CORRUPT_NAMES="$NAME"
+      CORRUPT_NAMES="$SAFE_NAME"
     else
-      CORRUPT_NAMES="$CORRUPT_NAMES, $NAME"
+      CORRUPT_NAMES="$CORRUPT_NAMES, $SAFE_NAME"
     fi
   fi
 done
