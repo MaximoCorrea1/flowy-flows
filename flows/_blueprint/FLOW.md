@@ -142,9 +142,9 @@ USER MESSAGE RECEIVED
 │
 ├─ BRIEF  (entry: new signed inquiry, no requirements captured)
 │   │
-│   ├─ Requirements not yet captured?
-│   │   → invoke intake-triage
-│   │   Gate: signed-brief note exists (date, venue, family list, count)
+│   ├─ Requirements detail not yet captured?
+│   │   → invoke requirements-capture
+│   │   Gate: family/VIP list + must-have shots + deliverable count captured
 │   │
 │   └─ Brief drafted but not confirmed by the couple?
 │       → invoke brief-confirm
@@ -157,7 +157,7 @@ USER MESSAGE RECEIVED
 │   │   Gate: shot list drafted from must-haves and venue light notes
 │   │
 │   ├─ Shot list exists but no day timeline?
-│   │   → invoke shoot-planning
+│   │   → invoke shoot-planning   # (same skill, two gates — split a skill across leaves ONLY when the sub-artifacts are genuinely sequential)
 │   │   Gate: minute-by-minute timeline exists (golden hour, formals, exit)
 │   │
 │   └─ Plan drafted, couple hasn't approved?
@@ -291,7 +291,7 @@ not to perform the work.
 ```
 ├─ Review feedback came back on the edits?
 │   → invoke edit-review
-│   Gate: feedback resolved and selects re-verified (re-review the redline)
+│   Gate: review feedback resolved; selects re-verified after redline
 ```
 
 ---
@@ -299,7 +299,8 @@ not to perform the work.
 ## Reasoning-mode legend
 
 Not every node deserves the same depth of thought. Mark each leaf so the agent
-spends judgment where taste matters and moves fast where it doesn't.
+spends judgment where taste matters and moves fast where it doesn't. **Every leaf
+gets a mark; an unmarked leaf defaults to MED.**
 
 - **FULL (taste-heavy — slow down, reason hard):**
   - `culling` — choosing the keepers is the whole craft; a wrong cull can't be
@@ -307,6 +308,8 @@ spends judgment where taste matters and moves fast where it doesn't.
   - `retouching` — skin, color, and mood are judgment calls, not presets.
   - `shoot-planning` — anticipating light and moments is where the photos are
     won or lost.
+  - `edit-review` — re-judging the selects after a redline is taste, not a
+    checklist; the second look is where a weak keeper gets caught.
   - `advisory-answer` — advice carries weight; get it right or say you're unsure.
 
 - **CAVE (mechanical — fast, low ceremony):**
@@ -315,8 +318,18 @@ spends judgment where taste matters and moves fast where it doesn't.
   - `scratchpad-read` — recover state; pure lookup.
 
 - **MED (structured, but not deep):**
-  - `intake-triage`, `brief-confirm`, `plan-review`, `verify-delivery` — follow
-    the checklist, confirm the artifact, move on.
+  - `intake-triage`, `requirements-capture`, `brief-confirm`, `plan-review`,
+    `verify-delivery` — follow the checklist, confirm the artifact, move on.
+  - `capture` — on-the-day, run the shot-list checklist and tick must-haves
+    live; disciplined, not deep.
+  - `rebrief`, `park-and-resume`, `clarify-scope` — routing and bookkeeping:
+    log the change, name the blocker, or ask one scoping question, then re-route.
+
+**Soft gates are for LIVE steps, not phase exits.** A `Gate: (soft) …` is fine on
+an in-progress leaf (e.g. `capture` ticking must-haves during the shoot) where the
+artifact is judgment, not a file. But a phase's EXIT gate must stay HARD — a real,
+named artifact in the scratchpad. The spine above already does this (every phase
+exits on a hard note/set/link); preserve that when you swap in your domain.
 
 ---
 
