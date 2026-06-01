@@ -1,0 +1,9 @@
+{
+  "name": "flowy-flows",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Flowy Flows plugin — hooks test harness",
+  "scripts": {
+    "test": "bun test"
+  }
+}
