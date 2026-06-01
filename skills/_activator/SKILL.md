@@ -133,21 +133,23 @@ Write the state to `$CLAUDE_PROJECT_DIR/.flowy/state-PENDING.json` using the EXA
 
 **Stacking case** (a Flow is already active this session): you must APPEND to the existing `activeFlows`, not clobber it. Determine the current state first:
 
-1. Look in `$CLAUDE_PROJECT_DIR/.flowy/`. Read `state-PENDING.json` if present; otherwise read the most recent `state-*.json` (the hook may have already claimed PENDING → `state-<session_id>.json` earlier this session).
-2. If you found a state file with a non-empty `activeFlows`, read those entries. **Dedup by name:** if an entry with `name == <flow-name>` already exists, print:
+1. Look in `$CLAUDE_PROJECT_DIR/.flowy/`. **You do NOT know the session_id**, so find the claimed state file by globbing `.flowy/state-*.json` and EXCLUDING `state-PENDING.json` — any remaining match is a `state-<session_id>.json` the hook already claimed this session. Read both `state-PENDING.json` (if present) AND any claimed `state-<session_id>.json` (if present); a session can have either or both.
+2. If you found a state file with a non-empty `activeFlows`, read those entries. **Dedup by name** across ALL files you read: if an entry with `name == <flow-name>` already exists in any of them, print:
    > Flow already active: <flow-name>. Use `/flowy deactivate <flow-name>` first to reset.
 
    Then stop — do NOT add a duplicate.
-3. Otherwise, build the new `activeFlows` as the existing entries PLUS your new `{ "name": "<flow-name>", "flowRef": "flows/<flow-name>/FLOW.md" }` (your entry appended last, preserving lockstep `name`-before-`flowRef` order in each object).
+3. Otherwise, build the new merged `activeFlows` as the union of the existing entries (deduped by name) PLUS your new `{ "name": "<flow-name>", "flowRef": "flows/<flow-name>/FLOW.md" }` (your entry appended last, preserving lockstep `name`-before-`flowRef` order in each object).
 
-**Where to write the merged result:** always write to `state-PENDING.json` and let the next hook turn claim+merge into the live `state-<session_id>.json`. This is the safe default and keeps the logic simple:
+**Where to write the merged result — you MUST write BOTH (this is a hard requirement, not advice):**
 
-- If you read from `state-PENDING.json`, write the merged `activeFlows` back to `state-PENDING.json`.
-- If you read from a claimed `state-<session_id>.json` (PENDING was already claimed earlier this session), write your merged `activeFlows` (existing claimed entries + your new one) to a fresh `state-PENDING.json`. On the next prompt the hook tries to claim PENDING but won't clobber the existing `state-<session_id>.json`; that's fine — keep PENDING as the up-to-date superset and, to avoid a split view, also write the same merged `activeFlows` into the existing `state-<session_id>.json` so the hook sees the full set immediately this turn. (Both files carry the same `activeFlows`; the hook reads `state-<session_id>.json` when it exists, so updating it keeps routing correct without waiting a turn.)
+1. **MUST** write the merged `activeFlows` to `$CLAUDE_PROJECT_DIR/.flowy/state-PENDING.json` (with `sessionId: "PENDING"`). This is the superset a fresh hook turn picks up; it guarantees the full set survives even if the claimed file is later replaced.
+2. **MUST**, when a claimed `state-<session_id>.json` already exists this session (i.e. your glob in step 1 found one or more `.flowy/state-*.json` other than `state-PENDING.json`), ALSO immediately write the SAME merged `activeFlows` into EVERY such claimed `state-<session_id>.json` file you found. Do this on THIS turn — do not defer it to the next hook turn.
 
-Always keep `sessionId: "PENDING"` in the PENDING file. In a claimed `state-<session_id>.json` you may leave its existing `sessionId` value; only `activeFlows` needs to be the merged set.
+**Why both are mandatory:** the hook reads `state-<session_id>.json` when it exists (it only claims PENDING when no claimed file is present). If you update only `state-PENDING.json`, the hook keeps reading the already-claimed `state-<session_id>.json` and the newly stacked Flow's routing is INVISIBLE until the next turn (a one-turn enforcement gap). Writing the merged set into the claimed file makes the new Flow enforce on THIS very turn. Writing it into PENDING too keeps a correct superset for any future claim. Skipping step 2 is the bug this rule exists to prevent — treat it as non-negotiable.
 
-If this is getting complicated for a given situation, the guaranteed-correct fallback is: **write/merge the full `activeFlows` into `.flowy/state-PENDING.json` and let the next hook turn claim and merge it.** Never write a file that drops a previously-active Flow.
+In each claimed `state-<session_id>.json` you may leave its existing `sessionId` value; only `activeFlows` must become the merged set. Always keep `sessionId: "PENDING"` in the PENDING file.
+
+Never write a file that drops a previously-active Flow. If you are ever unsure which files exist, glob `.flowy/state-*.json`, write the merged superset into PENDING, and write the same merged set into every claimed (non-PENDING) match.
 
 ### Step 5: Print confirmation
 
@@ -172,13 +174,13 @@ The enforcement hook **auto-installs with the plugin** — there is nothing to c
 1. **State file present:** after activation, `$CLAUDE_PROJECT_DIR/.flowy/state-PENDING.json` (or, if the hook already claimed it this session, `state-<session_id>.json`) should exist and contain your `activeFlows`. Verify it exists.
 2. **Banner on the next prompt:** on your NEXT user prompt, the hook should inject a routing banner that begins `⚑ Flowy routing ACTIVE: <flow-name>`. That banner appearing is proof the hook is firing and claiming the PENDING file.
 
-Print:
+Print this crisp confirmation (it tells the user exactly what to expect and what a failure looks like):
 
-> ✓ State written to `.flowy/state-PENDING.json`. On your next message, look for the `⚑ Flowy routing ACTIVE` banner — that confirms the hook is enforcing routing.
+> ✓ State written to `.flowy/state-PENDING.json`. Enforcement confirms on your NEXT prompt — you'll see the `⚑ Flowy routing ACTIVE` banner. If you do NOT see that banner next turn, the hook hasn't registered: restart Claude Code (plugin hooks register at session start), then re-run `/flowy <flow-name>`. You can verify any time with `/flowy status`, which reports whether the hook actually ran this session.
 
 If the banner does NOT appear on the next turn, tell the user:
 
-> ⚠ The Flowy hook didn't fire. Claude Code loads plugin hooks at session start, so a freshly installed plugin may need a restart to register its hook. Restart Claude Code and re-run `/flowy <flow-name>`.
+> ⚠ The Flowy hook didn't fire. Claude Code loads plugin hooks at session start, so a freshly installed plugin may need a restart to register its hook. Restart Claude Code and re-run `/flowy <flow-name>`. (Run `/flowy status` to confirm: it reports "Enforcement is live ✓" once the hook claims the session, or "Enforcement NOT confirmed ⚠" while only `state-PENDING.json` exists.)
 
 Do NOT tell users to install jq/python/PowerShell, hand-edit `settings.json`, or set up any hook themselves — the hook ships with the plugin and installs automatically. (This replaces the obsolete v0.2.0 self-check, which looked for a manually-installed PreToolUse hook and a root `.flowy-state.json`.)
 
@@ -199,28 +201,53 @@ After context compaction, re-read each active Flow's FLOW.md (resolve `<plugin-r
 
 ## DEACTIVATE
 
-Deactivation edits the current state file(s) under `$CLAUDE_PROJECT_DIR/.flowy/`. The hook may have claimed PENDING into `state-<session_id>.json`, so update whichever `state-*.json` files exist (both `state-PENDING.json` and any `state-<id>.json`).
+**Invocation path.** Deactivation is invoked through a flow wrapper that forwards the `deactivate` argument to this activator — e.g. `flowy:superpowers-flow deactivate` (or `flowy:superpowers-flow deactivate <flow-name>`). The user-facing form is `/flowy deactivate <flow-name>`; whichever wrapper routes here, the argument arrives as `deactivate <flow-name>` or a bare `deactivate`, parsed by the "Parse the argument" section above. There is no separate deactivate command — it is this same `_activator` with a `deactivate` argument.
+
+Deactivation edits the current state file(s) under `$CLAUDE_PROJECT_DIR/.flowy/`. You do NOT know the session_id, so glob `.flowy/state-*.json` to find every state file. The hook may have claimed PENDING into a `state-<session_id>.json`, so you MUST handle BOTH file types: `state-PENDING.json` AND any claimed `state-<id>.json`. **Cleaning only one type is a bug:** a stale `state-PENDING.json` that still names the deactivated Flow will be claimed by a future hook turn (or read by a future activation as "already active"), silently re-activating what the user just deactivated.
 
 ### If `deactivate <flow-name>`:
-1. For each `state-*.json` under `.flowy/`, read it and remove the `activeFlows` entry where `name == <flow-name>`.
-2. If `activeFlows` becomes empty, leave it as `"activeFlows": []` (the hook treats empty as deactivated and no-ops) — or delete that state file. Either is valid; prefer leaving `"activeFlows": []` in a claimed `state-<id>.json` so a stale PENDING can't silently re-activate, and you may delete `state-PENDING.json` when it empties.
-3. Otherwise write the updated `activeFlows` back.
+1. Glob `.flowy/state-*.json` to enumerate ALL state files (both `state-PENDING.json` and any `state-<id>.json`). For EACH one, read it and remove the `activeFlows` entry where `name == <flow-name>`.
+2. For each file, after removal:
+   - If `activeFlows` is still non-empty, write the updated `activeFlows` back to that file (preserving its `sessionId`).
+   - If `activeFlows` becomes empty:
+     - For a claimed `state-<id>.json`: write `"activeFlows": []` (the hook treats empty as deactivated and no-ops). Prefer leaving the empty array here rather than deleting, so a stale PENDING cannot silently re-activate.
+     - For `state-PENDING.json`: **delete it** (so it can never be claimed with the deactivated Flow still inside). If you cannot delete, write `"activeFlows": []` to it instead.
+3. **You MUST process state-PENDING.json in this same pass — do not stop after updating the claimed `state-<id>.json`.** Removing `<flow-name>` from the claimed file but leaving it in PENDING is exactly the stale-PENDING re-activation bug. Make the cleanup of BOTH file types explicit and complete.
 4. Print: `Flow deactivated: <flow-name>`
 
 ### If `deactivate` (no argument):
-1. For every `state-*.json` under `.flowy/`, either delete it or set `"activeFlows": []`.
+1. Glob `.flowy/state-*.json`. For EVERY match — including `state-PENDING.json` — either delete it or set `"activeFlows": []`. Prefer deleting `state-PENDING.json` and writing `"activeFlows": []` to any claimed `state-<id>.json`. Leave no file naming any Flow.
 2. Print: `All Flows deactivated. Routing obligations cleared.`
 
 ---
 
 ## STATUS
 
-1. Read the current state: prefer `$CLAUDE_PROJECT_DIR/.flowy/state-<session_id>.json` if a claimed one exists, else `state-PENDING.json`.
-2. If no state file exists, or `activeFlows` is empty: print `No active Flows.`
-3. Otherwise, for each entry in `activeFlows`:
+`status` is invoked the same way as the other commands — through a wrapper forwarding the `status` argument to this activator (e.g. `flowy:superpowers-flow status`), or `/flowy status`. It answers TWO questions the user cannot otherwise distinguish: (a) **what** the state file says is active, and (b) **whether the enforcement hook is actually running this session**. These are different: a missing flow and a broken hook are both silent, and the user needs to tell them apart.
+
+### Step A — enumerate state files
+
+Glob `$CLAUDE_PROJECT_DIR/.flowy/state-*.json`. Classify each match:
+- `state-PENDING.json` — written by the activator, NOT yet claimed by the hook.
+- any other `state-*.json` (i.e. `state-<session_id>.json`) — a file the hook CLAIMED by atomically renaming PENDING → `state-<session_id>.json` under its mkdir-lock. **The existence of a claimed `state-<session_id>.json` is the proof the hook ran**: the activator only ever writes `state-PENDING.json`, so the only thing that can produce a `state-<session_id>.json` is the hook's claim step. If one exists, the hook fired at least once this session.
+
+### Step B — report whether the hook is live (the critical signal)
+
+Decide and print exactly one of these:
+
+- **A claimed `state-<session_id>.json` exists** → the hook has claimed this session, so enforcement is LIVE. Print:
+  > Enforcement is live ✓ — the Flowy hook ran and claimed this session (`state-<session_id>.json` present). The ⚑ routing banner fires on each prompt.
+- **ONLY `state-PENDING.json` exists (no claimed file)** → the hook has NOT run yet this session (nothing ever renamed PENDING). Either you only just activated (the claim happens on your NEXT prompt), or the hook isn't registered. Print:
+  > ⚠ Enforcement NOT confirmed — only `state-PENDING.json` exists; the hook has not claimed this session. If you just activated, send one more prompt and re-check (the hook claims PENDING on the next prompt). If `state-PENDING.json` is STILL unclaimed after another prompt, the hook is not registered — **restart Claude Code** (plugin hooks register at session start) and re-activate.
+- **No state file at all** → nothing has been activated this session. Print `No active Flows.` and stop (there is nothing for the hook to enforce, so the hook-ran question is moot).
+
+### Step C — report what is active
+
+If any state file has a non-empty `activeFlows`, for each entry (deduped across files) print:
 ```
 Active Flow: <name>
   FLOW.md: <flowRef> (resolved under the plugin root)
 ```
+If every state file has empty `activeFlows`, print `No active Flows.` (state files exist but everything is deactivated).
 
-Also print the state file you read (`state-PENDING.json` or `state-<session_id>.json`) so the user knows whether the hook has claimed the session yet.
+Always name which state file(s) you read (`state-PENDING.json` and/or `state-<session_id>.json`) so the user can correlate the active-flow list with the live/not-live signal from Step B.
