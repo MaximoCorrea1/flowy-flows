@@ -1,0 +1,15 @@
+{
+  "description": "Flowy enforcement hook — injects active-flow routing banner on every user prompt",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/flowy-inject.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
