@@ -1,0 +1,5 @@
+# Shell hooks MUST keep LF line endings. CRLF breaks the `#!/usr/bin/env sh`
+# shebang at runtime under Git Bash (bad interpreter: "sh\r"). Force LF and
+# mark them as text so autocrlf cannot rewrite them on Windows checkouts.
+*.sh text eol=lf
+hooks/** text eol=lf

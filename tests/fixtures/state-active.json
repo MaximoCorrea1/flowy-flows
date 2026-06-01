@@ -1,0 +1,7 @@
+{
+  "schema": "flowy-state-v1",
+  "sessionId": "A",
+  "activeFlows": [
+    { "name": "superpowers-flow", "flowRef": "flows/superpowers-flow/FLOW.md" }
+  ]
+}
