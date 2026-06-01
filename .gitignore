@@ -1,0 +1,3 @@
+# Flowy session state (per-session scratch, never commit)
+.flowy/
+.flowy-state.json
