@@ -55,41 +55,15 @@ Routing becomes mandatory for the session. Brainstorming fires before code. TDD 
 | `flowy:solo-launch-playbook` | 7-module marketing pipeline for solo founders |
 | `flowy:anthropic-toolkit` | 13 official Anthropic skills with routing layer |
 
-## Enforce routing across context compaction
+## Enforcement is built in
 
-Install the PreToolUse hook so routing persists even after the agent's context is compacted.
+**Installing the plugin installs the hook — no setup, no `settings.json` editing.**
 
-### Setup
+When a Flow is active, the hook injects a routing banner into the agent's context every turn, so routing survives context compaction. It is **fail-loud, not fail-closed**: the hook never blocks your prompts — when no Flow is active (or state is missing) it stays silent and gets out of your way.
 
-Add this to your `~/.claude/settings.json`:
+To turn enforcement off, run `/flowy deactivate`.
 
-**Unix/macOS:**
-```json
-"hooks": {
-  "PreToolUse": [{
-    "matcher": "",
-    "hooks": [{
-      "type": "command",
-      "command": "cat \"$(pwd)/.flowy-state.json\" 2>/dev/null | python3 -c \"import json,sys; d=json.load(sys.stdin); print(json.dumps(d) if 'activeFlows' in d else '{}')\" 2>/dev/null || echo '{}'"
-    }]
-  }]
-}
-```
-
-**Windows (PowerShell):**
-```json
-"hooks": {
-  "PreToolUse": [{
-    "matcher": "",
-    "hooks": [{
-      "type": "command",
-      "command": "powershell -NoProfile -Command \"if (Test-Path (Join-Path $PWD '.flowy-state.json')) { $raw = Get-Content (Join-Path $PWD '.flowy-state.json') -Raw -Encoding UTF8; try { $parsed = $raw | ConvertFrom-Json; if ($parsed.activeFlows) { $raw } else { '{}' } } catch { '{}' } } else { '{}' }\""
-    }]
-  }]
-}
-```
-
-The hook reads `.flowy-state.json` from your project root and injects the active Flow state into the agent's context on every tool call. If the state file is missing or malformed, it outputs `{}` (fail-closed).
+> **One caveat:** Claude Code loads plugin hooks at session start, so a freshly installed plugin may need a restart to register its hook. If the routing banner doesn't appear right after your first install, restart Claude Code.
 
 ## Contributing
 
