@@ -30,6 +30,11 @@ Fill only L1 + L4 and you have a valid shallow tree. Reach L3 and you have the
 deep tree the validator rewards. Each row below shows **two domains** so you can
 see the shape is domain-general.
 
+> The rows below illustrate what *your* tree could look like — they are not a
+> line-by-line description of this blueprint's own FLOW.md (which keeps each
+> phase deliberately small as a starting point). Use the rows as a model, then
+> open `FLOW.md` to see the shape wired end-to-end.
+
 ### L1 — PHASES: name your lifecycle stages
 
 Name the ordered stages of your work and give each one a hard exit Gate — a
