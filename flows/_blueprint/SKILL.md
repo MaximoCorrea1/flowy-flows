@@ -1,8 +1,9 @@
 ---
 name: _blueprint
-description: Format-canonical starter Flow. Fork this, rename _blueprint to your-flow-name, rename your-skill-here, customize FLOW.md routing, validate, submit.
-version: 0.1.0
+description: Format-canonical starter Flow with a deep, domain-agnostic decision tree (phases + gates + standard branches). Fork it, fill the L1-L4 ladder for your domain, validate, submit.
+version: 0.2.0
 license: CC-BY-SA-4.0
+domain: photography
 ---
 
 # Blueprint — Starter Flow
