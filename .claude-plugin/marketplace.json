@@ -9,7 +9,7 @@
     {
       "name": "flowy",
       "description": "Curated library of goal-bound AI Flows with mandatory FLOW.md routing enforcement.",
-      "version": "0.4.1",
+      "version": "0.4.2",
       "source": "./",
       "author": {
         "name": "Maximo Correa",
