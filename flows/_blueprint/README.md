@@ -1,4 +1,4 @@
-# _blueprint — Flowy Starter Flow (deep-tree format, v0.2.0)
+# _blueprint — Flowy Starter Flow (deep-tree format, v0.3.0)
 
 Fork this to build a Flow that fires the right skill at the right moment — not
 just a bag of skills, but a router that knows when and why each one fires.

@@ -1,7 +1,7 @@
 ---
 name: _blueprint
 description: Format-canonical starter Flow with a deep, domain-agnostic decision tree (phases + gates + standard branches). Fork it, fill the L1-L4 ladder for your domain, validate, submit.
-version: 0.2.0
+version: 0.3.0
 license: CC-BY-SA-4.0
 domain: <<YOUR_DOMAIN>>
 ---
