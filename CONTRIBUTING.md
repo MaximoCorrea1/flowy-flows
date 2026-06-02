@@ -6,6 +6,12 @@ This file is the **file-level format reference** for git-native contributors who
 
 ---
 
+## What you build vs. what Flowy provides
+
+You build **two** things: your **skills** (the `SKILL.md` files) and a **validated `FLOW.md`** router. Flowy provides the rest **free** — enforcement, per-session state, and surviving compaction. You never write a hook or edit `settings.json`. Build a good router + good skills; Flowy makes them mandatory.
+
+---
+
 ## Quick start
 
 1. Browse `flows/_blueprint/` for the canonical reference structure.
