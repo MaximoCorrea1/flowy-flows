@@ -1,9 +1,9 @@
 ---
 name: _blueprint
 description: Format-canonical starter Flow with a deep, domain-agnostic decision tree (phases + gates + standard branches). Fork it, fill the L1-L4 ladder for your domain, validate, submit.
-version: 0.2.0
+version: 0.3.0
 license: CC-BY-SA-4.0
-domain: photography
+domain: <<YOUR_DOMAIN>>
 ---
 
 # Blueprint — Starter Flow
@@ -11,12 +11,16 @@ domain: photography
 This is the format-canonical starter Flow for Flowy contributors. It demonstrates
 every required field and section a published Flow needs.
 
+## Your job vs. the platform's job
+
+You build **two** things: your **skills** (`skills/*/SKILL.md`) and a **validated `FLOW.md`** router. Flowy provides the rest **free** — enforcement, per-session state, and surviving compaction. You never write a hook or touch `settings.json`.
+
 ## How to use this
 
 1. Copy this entire folder somewhere OUTSIDE the flowy-flows repo (so the activator's project-local override warnings don't trip)
 2. Rename the folder from `_blueprint` to your Flow's name (lowercase-with-hyphens)
 3. Rename the `skills/your-skill-here/` folder to your actual skill name
-4. Edit FLOW.md — replace the example routing with YOUR decision tree
+4. Open `examples/wedding-photography-delivery/FLOW.md` and read it end-to-end, then edit `FLOW.md` — replace every `<<…>>` placeholder with your domain's phases, conditions, skills, and gates.
 5. Edit each skills/<name>/SKILL.md with your actual skill content
 6. Validate at https://flowy.dev/create-a-flow/validate
 7. Submit at https://flowy.dev/me/flows/new OR open a PR to flowy-flows

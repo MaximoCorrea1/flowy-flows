@@ -1,7 +1,13 @@
-# _blueprint — Flowy Starter Flow (deep-tree format, v0.2.0)
+# _blueprint — Flowy Starter Flow (deep-tree format, v0.3.0)
 
 Fork this to build a Flow that fires the right skill at the right moment — not
 just a bag of skills, but a router that knows when and why each one fires.
+
+---
+
+## Your job vs. the platform's job
+
+You build **two** things: your **skills** (`skills/*/SKILL.md`) and a **validated `FLOW.md`** router. Flowy provides the rest **free** — enforcement, per-session state, and surviving compaction. You never write a hook or touch `settings.json`.
 
 ---
 
@@ -42,7 +48,7 @@ named artifact that must exist before you can enter the next stage.
 
 | Domain | Phases (in order) + exit Gates |
 |---|---|
-| **Photography** | BRIEF (signed-brief note) → SHOOT-PLAN (approved shot list + day timeline) → CAPTURE (verified card-offload note) → CULL/EDIT (locked select set, every select corrected) → DELIVER (delivered-gallery note: link sent, count confirmed) |
+| **Photography** | see `examples/wedding-photography-delivery` |
 | **Marketing** | AUDIT (audit findings doc) → RESEARCH (audience + competitor brief) → CREATE (approved draft in CMS) → DISTRIBUTE (scheduled/published confirmation) → MEASURE (30-day performance report) |
 
 In FLOW.md, these go in `## Phases` as numbered, one-line entries:
@@ -55,7 +61,7 @@ categories that carve the phase into distinct subtrees.
 
 | Domain | Phase | Categories |
 |---|---|---|
-| **Photography** | CAPTURE | portrait / group / candid |
+| **Photography** | see `examples/wedding-photography-delivery` | see `examples/wedding-photography-delivery` |
 | **Marketing** | CREATE | long-form content / short-form content / landing copy |
 
 In FLOW.md, categories become the second-level branches under a phase node.
@@ -68,7 +74,7 @@ as a question the agent can answer by reading the conversation and the scratchpa
 
 | Domain | Category | Condition |
 |---|---|---|
-| **Photography** | `culling` leaf | Re-shooting a scene that already failed a cull once? |
+| **Photography** | see `examples/wedding-photography-delivery` | see `examples/wedding-photography-delivery` |
 | **Marketing** | `long-form` leaf | Is there an existing approved outline, or does one need to be built first? |
 
 Keep conditions binary and checkable. "Vaguely feels like X" is not a condition.
@@ -81,7 +87,7 @@ Gate artifact is in the scratchpad — not "I think I'm done."
 
 | Domain | Leaf | Action + Gate |
 |---|---|---|
-| **Photography** | culling | `→ invoke culling` Gate: locked select set exists (rejects flagged, no second pass pending, keeper count ≤ agreed deliverable count) before any retouching begins |
+| **Photography** | see `examples/wedding-photography-delivery` | see `examples/wedding-photography-delivery` |
 | **Marketing** | draft-longform | `→ invoke draft-longform` Gate: outline approved in writing + draft saved to CMS in draft state (not published) |
 
 **Soft gates** — mark a gate `Gate: (soft) …` when the artifact is a judgment
@@ -179,6 +185,7 @@ The validator checks:
 - FLOW.md is a decision tree, not prose (hard failure)
 - Skills referenced in the tree are bundled in `skills/` (hard failure)
 - `LICENSE` file exists (hard failure)
+- Unfilled `<<…>>` placeholders are rejected — replace every one before submitting (this fires on the validate page AND on submit)
 - Override patterns (`ignore CLAUDE.md`, `override project instructions`) — auto-rejected
 - Depth, phase coverage, gate coverage, branch coverage — these are **warnings**,
   not rejections. The validator advises; it doesn't block on deep-tree checks.

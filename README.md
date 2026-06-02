@@ -65,6 +65,10 @@ To turn enforcement off, run `/flowy deactivate`.
 
 > **One caveat:** Claude Code loads plugin hooks at session start, so a freshly installed plugin may need a restart to register its hook. If the routing banner doesn't appear right after your first install, restart Claude Code.
 
+### For creators
+
+Building a Flow? You write **two** things — your **skills** and a **validated `FLOW.md`** router. Flowy provides enforcement, per-session state, and surviving-compaction **free** (you never write a hook). Start from `flows/_blueprint/` and read [CONTRIBUTING.md](./CONTRIBUTING.md).
+
 ## Contributing
 
 Read [CONTRIBUTING.md](./CONTRIBUTING.md) for the V1 submission paths (in-app upload at flowy.dev/me/flows/new OR GitHub PR to this repo).
