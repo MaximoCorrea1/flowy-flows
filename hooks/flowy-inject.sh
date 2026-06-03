@@ -23,17 +23,23 @@
 #   * Emit ONLY the intended banner/warning to stdout. Nothing stray.
 #
 # STATE FILE SHAPE — schema "flowy-state-v1"
-#   Written by the activator unit to:
-#     $CLAUDE_PROJECT_DIR/.flowy/state-<session_id>.json
-#   (or .../state-PENDING.json before a session_id is known).
+#   Written by the activator unit to the OUT-OF-REPO state dir (see RR2 below):
+#     <CLAUDE_HOME>/flowy-state/<project-key>/state-<session_id>.json
+#   (or .../state-PENDING.json before a session_id is known), where
+#     CLAUDE_HOME  = $CLAUDE_PLUGIN_ROOT up to (excluding) the last /plugins/
+#     project-key  = $CLAUDE_PROJECT_DIR with every non-[A-Za-z0-9] char → '_'
 #
 #     {
 #       "schema": "flowy-state-v1",
 #       "sessionId": "<id>",
 #       "activeFlows": [
-#         { "name": "superpowers-flow", "flowRef": "flows/superpowers-flow/FLOW.md" }
+#         { "name": "superpowers-flow", "flowRef": "flows/superpowers-flow/FLOW.md", "location": "plugin" }
 #       ]
 #     }
+#
+#   "location" (optional, RR1): "plugin" (default/absent) resolves the FLOW.md
+#   under $CLAUDE_PLUGIN_ROOT; "project" resolves it under
+#   $CLAUDE_PROJECT_DIR/.flowy/flows/<name>/FLOW.md. Parsed positionally with name.
 #
 #   Deliberately flat so we can parse it with grep/sed and NO jq/python/node.
 #   The parser is LINE-ORIENTED: it requires each `"name": "..."` and
@@ -50,10 +56,17 @@
 #       Nth name pairs with the Nth flowRef.
 #
 # RESOLUTION + AUTO-REPAIR (per flow)
-#   1. Try "$CLAUDE_PLUGIN_ROOT"/<flowRef>. If it exists → live.
-#   2. Else recompute "$CLAUDE_PLUGIN_ROOT"/flows/<name>/FLOW.md. If it exists
-#      → live (stale flowRef auto-repaired).
-#   3. Else → corrupt (active in state, FLOW.md unresolvable) → loud warning.
+#   location "project" (RR1):
+#     P. Resolve "$CLAUDE_PROJECT_DIR/.flowy/flows/<name>/FLOW.md" ONLY. No plugin
+#        fallback (explicit location must not be silently rescued by a bundled
+#        same-named flow). Else → corrupt.
+#   location "plugin" / absent:
+#     1. Try "$CLAUDE_PLUGIN_ROOT"/<flowRef>. If it exists → live.
+#     2. Else recompute "$CLAUDE_PLUGIN_ROOT"/flows/<name>/FLOW.md. If it exists
+#        → live (stale flowRef auto-repaired).
+#     3. Else → corrupt (active in state, FLOW.md unresolvable) → loud warning.
+#   In ALL cases (RR3) the RESOLVED FLOW.md is rejected if it is a symlink
+#   (`[ ! -L ]`) — a planted link must never read an arbitrary file into context.
 #
 # SECURITY
 #   session_id is sanitized against ^[A-Za-z0-9_-]{1,128}$ before it is ever
@@ -173,7 +186,41 @@ is_safe_id() {
 is_safe_id "$SESSION_ID" || exit 0
 # From here, SESSION_ID is path-safe.
 
-FLOWY_DIR="$PROJECT_DIR/.flowy"
+# ---------------------------------------------------------------------------
+# 2b. Derive the OUT-OF-REPO state dir (RR2 security fix). State must NEVER be
+#     read from inside the project repo: a cloned repo could ship a committed
+#     $PROJECT_DIR/.flowy/state-PENDING.json + .flowy/flows/evil/FLOW.md and the
+#     hook would otherwise claim it and inject attacker routing. So we anchor
+#     state under the user's Claude home (<...>/.claude/flowy-state/<project-key>),
+#     derived from CLAUDE_PLUGIN_ROOT. NO in-repo fallback (a fallback reopens
+#     the hole). If we cannot derive a safe home → no-op (fail-loud, never block).
+#
+#     CLAUDE_HOME = $PLUGIN_ROOT up to (and excluding) the LAST /plugins/ segment.
+#     Real plugin roots look like .../.claude/plugins/cache/<repo>/<ns>/<ver>, so
+#     stripping /plugins/* yields .../.claude. We then HARD-REQUIRE that the
+#     result ends in /.claude — anything else is an unexpected layout → no-op.
+#     case statements only (no bashisms).
+# ---------------------------------------------------------------------------
+CLAUDE_HOME="${PLUGIN_ROOT%/plugins/*}"
+# No /plugins/ found → the expansion is a no-op and equals PLUGIN_ROOT → no-op.
+[ "$CLAUDE_HOME" != "$PLUGIN_ROOT" ] || exit 0
+# Must resolve to a .claude home; reject any other directory shape.
+case "$CLAUDE_HOME" in
+  */.claude ) : ;;          # ok
+  * ) exit 0 ;;             # not a .claude home → no-op
+esac
+
+# Deterministic project key: every non-[A-Za-z0-9] char → '_'. The activator
+# computes the byte-identical key, so both sides agree on the state dir.
+PROJECT_KEY="$(printf '%s' "$PROJECT_DIR" | tr -c 'A-Za-z0-9' '_')"
+[ -n "$PROJECT_KEY" ] || exit 0
+
+STATE_DIR="$CLAUDE_HOME/flowy-state/$PROJECT_KEY"
+mkdir -p "$STATE_DIR" 2>/dev/null || true
+
+# Project-local flow CONTENT root (inert without an out-of-repo state pointer).
+# Only used to RESOLVE FLOW.md for entries marked "location":"project".
+PROJECT_FLOWS_DIR="$PROJECT_DIR/.flowy/flows"
 
 # ---------------------------------------------------------------------------
 # 3. Claim a PENDING activation, RACE-SAFE (Fix 1). If state-PENDING.json exists
@@ -193,20 +240,20 @@ FLOWY_DIR="$PROJECT_DIR/.flowy"
 #    Symlink guard (Fix 4): a symlinked PENDING is never claimed — we'd otherwise
 #    mv an attacker-controlled link target into a session state path.
 # ---------------------------------------------------------------------------
-PENDING="$FLOWY_DIR/state-PENDING.json"
-STATE="$FLOWY_DIR/state-$SESSION_ID.json"
+PENDING="$STATE_DIR/state-PENDING.json"
+STATE="$STATE_DIR/state-$SESSION_ID.json"
 
 if [ -f "$PENDING" ] && [ ! -L "$PENDING" ]; then
   # Acquire the claim lock atomically. Only the process whose mkdir succeeds
   # proceeds; everyone else skips claiming this turn.
-  if mkdir "$FLOWY_DIR/.claim.lock" 2>/dev/null; then
-    CLAIM_LOCK="$FLOWY_DIR/.claim.lock"
+  if mkdir "$STATE_DIR/.claim.lock" 2>/dev/null; then
+    CLAIM_LOCK="$STATE_DIR/.claim.lock"
     # Re-check inside the lock (the winner may have just created STATE; and the
     # PENDING may have been claimed/removed between our outer test and the lock).
     if [ -f "$PENDING" ] && [ ! -L "$PENDING" ] && [ ! -f "$STATE" ]; then
       mv "$PENDING" "$STATE" 2>/dev/null || true
     fi
-    rmdir "$FLOWY_DIR/.claim.lock" 2>/dev/null || true
+    rmdir "$STATE_DIR/.claim.lock" 2>/dev/null || true
     CLAIM_LOCK=""
   fi
   # mkdir failed → lock held by a peer (or stale). Skip claim; safe no-op.
@@ -258,6 +305,18 @@ REFS="$(
     | sed 's/.*:[[:space:]]*"//; s/"$//' \
     | tr -d '\r'
 )"
+# RR1: optional per-entry "location" — "plugin" (default/absent) resolves under
+# $PLUGIN_ROOT; "project" resolves under $PROJECT_DIR/.flowy/flows/<name>/FLOW.md.
+# Parsed line-oriented and paired POSITIONALLY with NAMES, exactly like REFS. The
+# activator writes one "location" per array element (it always emits the field),
+# so the Nth location pairs with the Nth name. If the Nth location is absent/empty
+# we default to plugin resolution — the SAFE direction (never silently project).
+LOCATIONS="$(
+  printf '%s' "$STATE_CONTENT" \
+    | grep -o '"location"[[:space:]]*:[[:space:]]*"[^"]*"' \
+    | sed 's/.*:[[:space:]]*"//; s/"$//' \
+    | tr -d '\r'
+)"
 
 [ -n "$NAMES" ] || exit 0
 
@@ -277,6 +336,8 @@ for NAME in $NAMES; do
   i=$((i + 1))
   # Nth flowRef (may be empty if fewer refs than names).
   REF="$(printf '%s\n' "$REFS" | sed -n "${i}p")"
+  # Nth location (may be empty/absent → defaults to plugin resolution).
+  LOC="$(printf '%s\n' "$LOCATIONS" | sed -n "${i}p")"
 
   RESOLVED=""
   # Reject a flowRef that tries to escape the plugin root.
@@ -293,17 +354,37 @@ for NAME in $NAMES; do
     *\\* ) REF="" ;;                # unreachable — backslash already caught by the charset guard above; kept for explicit intent.
   esac
 
-  if [ -n "$REF" ] && [ -f "$PLUGIN_ROOT/$REF" ]; then
+  if [ "$LOC" = "project" ]; then
+    # RR1: project-local flow. Resolve ONLY $PROJECT_DIR/.flowy/flows/<name>/FLOW.md.
+    # No flowRef-based plugin resolution and NO plugin auto-repair fallback — a
+    # location=project entry is explicit; falling back to the plugin path would
+    # let a same-named bundled flow silently rescue a missing project flow. NAME
+    # is semi-trusted; reuse the same charset/`..` guard as plugin auto-repair.
+    case "$NAME" in
+      *[!A-Za-z0-9_.-]* | *..* ) : ;;  # unsafe name → no resolution
+      '' ) : ;;
+      * )
+        PCANON="$PROJECT_FLOWS_DIR/$NAME/FLOW.md"
+        # RR3: reject a SYMLINKED resolved FLOW.md — `[ -f ]` follows symlinks, so
+        # an attacker-planted link could read an arbitrary file into context.
+        if [ -f "$PCANON" ] && [ ! -L "$PCANON" ]; then
+          RESOLVED="$PCANON"
+        fi
+        ;;
+    esac
+  elif [ -n "$REF" ] && [ -f "$PLUGIN_ROOT/$REF" ] && [ ! -L "$PLUGIN_ROOT/$REF" ]; then
+    # Plugin resolution via stored flowRef. RR3: reject a symlinked FLOW.md.
     RESOLVED="$PLUGIN_ROOT/$REF"
   else
-    # Auto-repair: canonical layout flows/<name>/FLOW.md.
+    # Auto-repair: canonical layout flows/<name>/FLOW.md under the plugin root.
     # NAME is from the state file (semi-trusted); guard against traversal.
     case "$NAME" in
       *[!A-Za-z0-9_.-]* | *..* ) : ;;  # unsafe name → skip auto-repair
       '' ) : ;;
       * )
         CANON="$PLUGIN_ROOT/flows/$NAME/FLOW.md"
-        if [ -f "$CANON" ]; then
+        # RR3: reject a symlinked resolved FLOW.md on the plugin path too.
+        if [ -f "$CANON" ] && [ ! -L "$CANON" ]; then
           RESOLVED="$CANON"
         fi
         ;;
