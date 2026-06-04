@@ -92,6 +92,19 @@ USER MESSAGE RECEIVED
   ├─ Need parallel isolated branches?
   │   → skills/using-git-worktrees/SKILL.md
   │
+  ├─ Question, not work? (asking me to advise or explain)
+  │   → answer-only: no skill fires, no files change
+  │   Gate: reply contains no code/file edits
+  │
+  ├─ Scope-change mid-task? (brief changed, requirements changed)
+  │   → re-enter the earliest invalidated phase (usually
+  │     skills/brainstorming/SKILL.md or skills/writing-plans/SKILL.md)
+  │   Gate: plan updated to the new scope before any further build step
+  │
+  ├─ Blocked / waiting on an external dependency?
+  │   → park the task: record the blocker + resume trigger in the plan
+  │   Gate: blocker and resume condition written down
+  │
   └─ Want to create a custom skill?
       → skills/writing-skills/SKILL.md
 ```
@@ -106,11 +119,26 @@ USER MESSAGE RECEIVED
 5. **Brainstorming** — no design = design first
 6. Everything else in natural order
 
+Collisions resolve by the numbered order above. Examples:
+- Broken build WHILE a "done" claim is pending → debugging (1) before
+  verification (2).
+- New feature request WHILE tests are red → debugging first; brainstorming
+  queues behind a green build.
+- User asks a question mid-implementation → question-vs-work branch answers
+  WITHOUT leaving the build phase; the plan's next unchecked task resumes.
+
 ### Before every turn
 
 State your routing decision:
   `Routing: [skill-name] — [one-line reason]`
 If no skill applies: `Routing: none — [reason]`
+
+### After context compaction
+
+Conversation summaries do not preserve routing obligations reliably. After
+any compaction, re-read this FLOW.md before the next routing decision and
+restate the active phase. The state file preserves WHAT is active; this file
+is the routing law.
 
 ### You are rationalizing if you think:
 
@@ -123,6 +151,10 @@ If no skill applies: `Routing: none — [reason]`
 - "They just asked a question, no skill needed" → if writing code to answer it, TDD fires.
 - "I already invoked this skill earlier" → each task is a fresh invocation. Invoke again.
 - "I need to ask for clarification first" → brainstorming handles clarification. Route there.
+- "The file is right there, I'll just edit it" → TDD. Failing test first.
+- "The summary says I already routed" → post-compaction rule. Re-read, restate.
+- "This question is quick, I'll also fix the code while I'm in there" →
+  question-vs-work gate. Answer, then route the work properly.
 
 ### Skills that compose internally
 
@@ -144,6 +176,26 @@ references another skill, follow the referenced skill inline — do NOT
 re-evaluate the routing table. Return to the outer skill when the inner
 skill completes. This prevents TDD and executing-plans from triggering
 each other in a loop.
+
+---
+
+## Phases
+
+A Flow-managed task moves through five phases. Each phase has an exit gate —
+the agent does not advance until the gate's evidence exists.
+
+1. **Design** — brainstorming until a written design exists.
+   Gate: design document exists and the user approved it.
+2. **Plan** — writing-plans until the work is checkboxed tasks.
+   Gate: plan with checkboxed tasks, approved.
+3. **Build** — executing-plans / subagent-driven-development, TDD inside every
+   code-bearing task.
+   Gate: all checkboxes checked, tests green.
+4. **Verify** — verification-before-completion on every "done" claim.
+   Gate: verification command output proves the claim in THIS session.
+5. **Ship** — requesting/receiving-code-review, then
+   finishing-a-development-branch.
+   Gate: findings resolved, tests pass, integration choice made.
 
 ---
 

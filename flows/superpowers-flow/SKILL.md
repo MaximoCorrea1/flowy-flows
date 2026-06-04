@@ -3,6 +3,8 @@ name: superpowers-flow
 description: All 14 superpowers skills bundled with a FLOW.md router that auto-invokes the right skill at the right moment. Curated by Flowy.
 version: 0.1.0
 license: MIT
+upstream: https://github.com/obra/superpowers
+attribution: Skills by Jesse Vincent
 ---
 
 # Superpowers Flow

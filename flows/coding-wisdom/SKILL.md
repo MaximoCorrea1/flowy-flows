@@ -3,6 +3,8 @@ name: coding-wisdom
 description: 8 classic programming books distilled into agent-readable rules — Clean Code, Refactoring, DDD, DDIA, Pragmatic Programmer, Clean Architecture, Release It!, Legacy Code. Session-start cheat-sheet priming + on-demand full ruleset loading.
 version: 0.2.0
 license: MIT
+upstream: https://github.com/mattpocock/agent-rules-books
+attribution: Rules by Maciej Ciemborowicz
 ---
 
 # Coding Wisdom
