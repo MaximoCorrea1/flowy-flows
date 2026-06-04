@@ -332,6 +332,11 @@ i=0
 OLD_IFS="$IFS"
 IFS='
 '
+# Fix (security audit #6): disable pathname expansion. IFS=newline stops
+# word-splitting, but `for NAME in $NAMES` still GLOB-expands — a crafted name
+# like "*" or "a[b]" would expand against the cwd and leak filenames into the
+# loop (and the agent banner). set -f (noglob) closes it; restored after.
+set -f
 for NAME in $NAMES; do
   i=$((i + 1))
   # Nth flowRef (may be empty if fewer refs than names).
@@ -421,6 +426,7 @@ $SAFE_NAME"
     fi
   fi
 done
+set +f
 IFS="$OLD_IFS"
 
 # ---------------------------------------------------------------------------
