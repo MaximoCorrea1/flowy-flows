@@ -3,6 +3,8 @@ name: solo-launch-playbook
 description: 7-module marketing pipeline for solo founders — CRO audit, SEO research, content scoring, X threads, social content, outbound, growth experiments. From landing page to launch day to post-launch measurement.
 version: 0.1.0
 license: MIT
+upstream: https://github.com/ericosiu/ai-marketing-skills
+attribution: Modules by Eric Siu / Single Grain
 ---
 
 # Solo Launch Playbook

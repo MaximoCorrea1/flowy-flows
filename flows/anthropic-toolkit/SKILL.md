@@ -3,6 +3,8 @@ name: anthropic-toolkit
 description: 13 official Anthropic skills bundled with a FLOW.md router — frontend design, webapp testing, Claude API, MCP builder, brand guidelines, and more.
 version: 0.1.0
 license: Apache-2.0
+upstream: https://github.com/anthropics/skills
+attribution: Skills by Anthropic
 ---
 
 # Anthropic Toolkit
