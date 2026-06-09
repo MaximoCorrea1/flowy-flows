@@ -135,6 +135,15 @@ Write the state to **`<claude-home>/flowy-state/<project-key>/state-PENDING.json
 
 **Ensure the out-of-repo state dir exists** (`mkdir -p <claude-home>/flowy-state/<project-key>/`) before writing. Do NOT write under `$CLAUDE_PROJECT_DIR/.flowy/` — the hook ignores in-repo state.
 
+**Step 4.0 — Reconcile stale cross-session state FIRST.** The hook never garbage-collects claimed `state-<session_id>.json` files, so `<claude-home>/flowy-state/<project-key>/` accumulates files from PRIOR sessions. Those files are NOT a reliable signal of what is active in *your* session — globbing them and treating a name match as "already active" is exactly the false-block bug this step exists to prevent. Your ONE authoritative signal for THIS session is the hook's `⚑ Flowy routing ACTIVE` / `Active Flows:` banner injected into your context this turn:
+
+- **No `Active Flows:` banner this turn** → no Flow is active in this session. Every `state-*.json` in the dir (`state-PENDING.json` + any `state-<id>.json`) is therefore stale from other sessions. **Delete them all**, then proceed as the **Single-flow case** below (clean slate). Do NOT read their contents and do NOT treat any of them as "already active."
+- **`Active Flows:` banner present** → its list IS the active set for this session. Use that list (not file contents) for the Stacking-case dedup below, and **delete any `state-<id>.json` whose `activeFlows` do not match the banner list** — those belong to other sessions.
+
+After this step the dir contains only state for the current session (or nothing), so the cases below operate on a clean slate.
+
+> Caveat: with two concurrent Claude Code sessions sharing one project dir, this prune can delete the *other* live session's file; that session re-enforces on its next `/flowy` activation (the hook is fail-loud, never blocks). A garbage-collecting hook is the durable hygiene fix (tracked as follow-up) — but banner-based reconciliation here is what actually fixes the false-block, independent of any leftover files.
+
 **Single-flow case** (no Flow active yet) — write:
 
 ```json
@@ -147,19 +156,19 @@ Write the state to **`<claude-home>/flowy-state/<project-key>/state-PENDING.json
 }
 ```
 
-**Stacking case** (a Flow is already active this session): you must APPEND to the existing `activeFlows`, not clobber it. Determine the current state first:
+**Stacking case** (a Flow is already active this session — i.e. Step 4.0 saw an `Active Flows:` banner): you must APPEND to the existing `activeFlows`, not clobber it. The banner is the source of truth — do NOT re-derive "active" by globbing arbitrary files (Step 4.0 already pruned other sessions' files):
 
-1. Look in `<claude-home>/flowy-state/<project-key>/`. **You do NOT know the session_id**, so find the claimed state file by globbing `state-*.json` in that dir and EXCLUDING `state-PENDING.json` — any remaining match is a `state-<session_id>.json` the hook already claimed this session. Read both `state-PENDING.json` (if present) AND any claimed `state-<session_id>.json` (if present); a session can have either or both.
-2. If you found a state file with a non-empty `activeFlows`, read those entries. **Dedup by name** across ALL files you read: if an entry with `name == <flow-name>` already exists in any of them, print:
+1. The current active set is the banner's `Active Flows:` list (Step 4.0). After 4.0's prune, the only `state-<session_id>.json` left in the dir is THIS session's — its `activeFlows` match the banner. That single file (plus `state-PENDING.json`) is what you read and update; read it now for the full `{name, flowRef, location}` entries behind the banner names.
+2. **Dedup against the banner list:** if `<flow-name>` is already in the banner's `Active Flows:`, print:
    > Flow already active: <flow-name>. Use `/flowy deactivate <flow-name>` first to reset.
 
    Then stop — do NOT add a duplicate.
-3. Otherwise, build the new merged `activeFlows` as the union of the existing entries (deduped by name) PLUS your new `{ "name": "<flow-name>", "flowRef": "flows/<flow-name>/FLOW.md", "location": "<plugin|project>" }` (your entry appended last, preserving lockstep `name`-then-`flowRef`-then-`location` order in each object).
+3. Otherwise, build the new merged `activeFlows` as the union of the existing entries (the banner's flows, with their `flowRef`/`location` from the surviving claimed file, deduped by name) PLUS your new `{ "name": "<flow-name>", "flowRef": "flows/<flow-name>/FLOW.md", "location": "<plugin|project>" }` (your entry appended last, preserving lockstep `name`-then-`flowRef`-then-`location` order in each object).
 
 **Where to write the merged result — you MUST write BOTH (this is a hard requirement, not advice). Every path below is in the OUT-OF-REPO dir `<claude-home>/flowy-state/<project-key>/`:**
 
 1. **MUST** write the merged `activeFlows` to `<claude-home>/flowy-state/<project-key>/state-PENDING.json` (with `sessionId: "PENDING"`). This is the superset a fresh hook turn picks up; it guarantees the full set survives even if the claimed file is later replaced.
-2. **MUST**, when a claimed `state-<session_id>.json` already exists this session (i.e. your glob in step 1 found one or more `state-*.json` other than `state-PENDING.json` in that dir), ALSO immediately write the SAME merged `activeFlows` into EVERY such claimed `state-<session_id>.json` file you found. Do this on THIS turn — do not defer it to the next hook turn.
+2. **MUST**, when this session already has a claimed `state-<session_id>.json` (the one identified in step 1 — present whenever the `Active Flows:` banner fired this turn), ALSO immediately write the SAME merged `activeFlows` into that claimed file. Do this on THIS turn — do not defer it to the next hook turn.
 
 **Why both are mandatory:** the hook reads `state-<session_id>.json` when it exists (it only claims PENDING when no claimed file is present). If you update only `state-PENDING.json`, the hook keeps reading the already-claimed `state-<session_id>.json` and the newly stacked Flow's routing is INVISIBLE until the next turn (a one-turn enforcement gap). Writing the merged set into the claimed file makes the new Flow enforce on THIS very turn. Writing it into PENDING too keeps a correct superset for any future claim. Skipping step 2 is the bug this rule exists to prevent — treat it as non-negotiable.
 
