@@ -40,6 +40,7 @@ Throughout this skill, wherever a step says `.flowy/state-*.json`, it means a fi
 {
   "schema": "flowy-state-v1",
   "sessionId": "PENDING",
+  "createdAtEpoch": 1749800000,
   "activeFlows": [
     { "name": "superpowers-flow", "flowRef": "flows/superpowers-flow/FLOW.md", "location": "plugin" }
   ]
@@ -52,6 +53,7 @@ Throughout this skill, wherever a step says `.flowy/state-*.json`, it means a fi
   - Each `"name": "..."`, each `"flowRef": "..."`, and each `"location": "..."` must sit on its OWN single line. Standard pretty-printed JSON (one key per line, as shown above) is fine. Never split a key/value across lines.
   - Never put an escaped quote (`\"`) inside a `name`, `flowRef`, or `location` value. Flow names are clean slugs (`[a-z0-9-]`), flowRefs are clean relative paths, and `location` is exactly `plugin` or `project` — none need escaping.
   - Names, flowRefs, and locations are read **positionally, in lockstep**: the Nth `"name"` pairs with the Nth `"flowRef"` and the Nth `"location"`. Write one object per array element with `name`, then `flowRef`, then `location`, in that order. Emitting `location` on EVERY entry keeps the positional pairing aligned.
+- **`createdAtEpoch` (REQUIRED on every `state-PENDING.json` — lockstep with the hook):** the current Unix epoch seconds, obtained via the Bash tool `date +%s`, written as an **unquoted integer** at the top level (sibling of `sessionId`). The hook treats a PENDING that LACKS `createdAtEpoch`, or whose `createdAtEpoch` is older than the freshness TTL (~120s), as **STALE and deletes it WITHOUT claiming** — so an un-stamped (or slow-to-be-claimed) PENDING means your Flow silently never activates. Claimed `state-<session_id>.json` files do NOT need it (only PENDING is TTL-checked); but always stamp PENDING.
 - **"active" means:** the file exists AND contains `"activeFlows"` AND has ≥1 `"name":` entry. An empty `"activeFlows": []` means deactivated — the hook no-ops.
 
 ## Parse the argument
@@ -150,11 +152,14 @@ After this step the dir contains only state for the current session (or nothing)
 {
   "schema": "flowy-state-v1",
   "sessionId": "PENDING",
+  "createdAtEpoch": 1749800000,
   "activeFlows": [
     { "name": "<flow-name>", "flowRef": "flows/<flow-name>/FLOW.md", "location": "<plugin|project>" }
   ]
 }
 ```
+
+(Replace `createdAtEpoch` with the live value from `date +%s` — an unquoted integer, NOT the literal `1749800000`.)
 
 **Stacking case** (a Flow is already active this session — i.e. Step 4.0 saw an `Active Flows:` banner): you must APPEND to the existing `activeFlows`, not clobber it. The banner is the source of truth — do NOT re-derive "active" by globbing arbitrary files (Step 4.0 already pruned other sessions' files):
 
@@ -167,7 +172,7 @@ After this step the dir contains only state for the current session (or nothing)
 
 **Where to write the merged result — you MUST write BOTH (this is a hard requirement, not advice). Every path below is in the OUT-OF-REPO dir `<claude-home>/flowy-state/<project-key>/`:**
 
-1. **MUST** write the merged `activeFlows` to `<claude-home>/flowy-state/<project-key>/state-PENDING.json` (with `sessionId: "PENDING"`). This is the superset a fresh hook turn picks up; it guarantees the full set survives even if the claimed file is later replaced.
+1. **MUST** write the merged `activeFlows` to `<claude-home>/flowy-state/<project-key>/state-PENDING.json` (with `sessionId: "PENDING"` AND a fresh `createdAtEpoch` from `date +%s` — see the contract above; an un-stamped PENDING is deleted by the hook as stale). This is the superset a fresh hook turn picks up; it guarantees the full set survives even if the claimed file is later replaced.
 2. **MUST**, when this session already has a claimed `state-<session_id>.json` (the one identified in step 1 — present whenever the `Active Flows:` banner fired this turn), ALSO immediately write the SAME merged `activeFlows` into that claimed file. Do this on THIS turn — do not defer it to the next hook turn.
 
 **Why both are mandatory:** the hook reads `state-<session_id>.json` when it exists (it only claims PENDING when no claimed file is present). If you update only `state-PENDING.json`, the hook keeps reading the already-claimed `state-<session_id>.json` and the newly stacked Flow's routing is INVISIBLE until the next turn (a one-turn enforcement gap). Writing the merged set into the claimed file makes the new Flow enforce on THIS very turn. Writing it into PENDING too keeps a correct superset for any future claim. Skipping step 2 is the bug this rule exists to prevent — treat it as non-negotiable.
