@@ -18,9 +18,14 @@ This skill invokes the bundled `flowy:_activator` skill (sibling skill in this p
 
 ## Invocation
 
-Invoke the `flowy:_activator` skill with argument `coding-wisdom`.
+Look at the argument THIS skill was invoked with, and forward to `flowy:_activator`:
+- **No argument** (or anything that isn't `deactivate`/`status`) → activate: invoke `flowy:_activator` with argument `coding-wisdom`.
+- **`deactivate`** (optionally followed by a flow name) → invoke `flowy:_activator` with argument `deactivate coding-wisdom` (use the user's named flow if they gave one). Turns this Flow off for THIS session only.
+- **`status`** → invoke `flowy:_activator` with argument `status`.
 
-The activator will resolve paths relative to this plugin's root automatically. The current skill's base directory is `skills/coding-wisdom/`; the plugin root is two levels up.
+So `/flowy:coding-wisdom` activates, `/flowy:coding-wisdom deactivate` turns it off, and `/flowy:coding-wisdom status` reports what's active + whether the hook is live.
+
+The activator resolves paths relative to this plugin's root automatically. The current skill's base directory is `skills/coding-wisdom/`; the plugin root is two levels up.
 
 ## If the bundled activator is somehow unavailable
 

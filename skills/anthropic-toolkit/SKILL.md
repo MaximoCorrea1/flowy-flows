@@ -18,9 +18,14 @@ This skill invokes the bundled `flowy:_activator` skill (sibling skill in this p
 
 ## Invocation
 
-Invoke the `flowy:_activator` skill with argument `anthropic-toolkit`.
+Look at the argument THIS skill was invoked with, and forward to `flowy:_activator`:
+- **No argument** (or anything that isn't `deactivate`/`status`) → activate: invoke `flowy:_activator` with argument `anthropic-toolkit`.
+- **`deactivate`** (optionally followed by a flow name) → invoke `flowy:_activator` with argument `deactivate anthropic-toolkit` (use the user's named flow if they gave one). Turns this Flow off for THIS session only.
+- **`status`** → invoke `flowy:_activator` with argument `status`.
 
-The activator will resolve paths relative to this plugin's root automatically. The current skill's base directory is `skills/anthropic-toolkit/`; the plugin root is two levels up.
+So `/flowy:anthropic-toolkit` activates, `/flowy:anthropic-toolkit deactivate` turns it off, and `/flowy:anthropic-toolkit status` reports what's active + whether the hook is live.
+
+The activator resolves paths relative to this plugin's root automatically. The current skill's base directory is `skills/anthropic-toolkit/`; the plugin root is two levels up.
 
 ## If the bundled activator is somehow unavailable
 
