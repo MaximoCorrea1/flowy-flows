@@ -61,6 +61,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -431,6 +432,9 @@ d("flowy-inject.sh", () => {
     writeState(dirs, "PENDING", {
       schema: "flowy-state-v1",
       sessionId: "PENDING",
+      // MIGRATION: must include a recent createdAtEpoch or TTL freshness gate
+      // treats it as stale and self-heals it (deletes) instead of claiming it.
+      createdAtEpoch: Math.floor(Date.now() / 1000),
       activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
     });
 
@@ -655,6 +659,9 @@ d("flowy-inject.sh", () => {
     writeState(dirs, "PENDING", {
       schema: "flowy-state-v1",
       sessionId: "PENDING",
+      // MIGRATION: must include a recent createdAtEpoch or TTL freshness gate
+      // treats it as stale and self-heals it (deletes) instead of claiming it.
+      createdAtEpoch: Math.floor(Date.now() / 1000),
       activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
     });
 
@@ -1021,6 +1028,9 @@ d("flowy-inject.sh", () => {
     writeState(dirs, "PENDING", {
       schema: "flowy-state-v1",
       sessionId: "PENDING",
+      // MIGRATION: must include a recent createdAtEpoch or TTL freshness gate
+      // treats it as stale and self-heals it (deletes) instead of claiming it.
+      createdAtEpoch: Math.floor(Date.now() / 1000),
       activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
     });
 
@@ -1156,6 +1166,11 @@ d("flowy-inject.sh", () => {
     writeState(dirs, "PENDING", {
       schema: "flowy-state-v1",
       sessionId: "PENDING",
+      // MIGRATION: fresh createdAtEpoch → PENDING is a "fresh orphan" (STATE already
+      // exists for session A) and must be left untouched, not deleted. This preserves
+      // the original intent: an in-flight PENDING for a DIFFERENT session must never
+      // clobber an already-claimed state-A.json.
+      createdAtEpoch: Math.floor(Date.now() / 1000),
       activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
     });
     writeState(dirs, "A", {
@@ -1172,6 +1187,7 @@ d("flowy-inject.sh", () => {
     expect(r.stdout).not.toContain("superpowers-flow");
     const aContent = readFileSync(join(dirs.stateDirWin, "state-A.json"), "utf8");
     expect(aContent).toContain("anthropic-toolkit");
+    // A fresh orphan PENDING (STATE already claimed) is left untouched.
     expect(existsSync(join(dirs.stateDirWin, "state-PENDING.json"))).toBe(true);
   });
 
@@ -1231,6 +1247,125 @@ d("flowy-inject.sh", () => {
     expect(r.stdout.trim()).toBe("");
     expect(elapsed).toBeLessThan(5000);
   });
+
+  // =========================================================================
+  // TTL FRESHNESS GATE (Change B) + KEEP-ALIVE TOUCH (Change C)
+  // =========================================================================
+
+  // -------------------------------------------------------------------------
+  // KEEP-ALIVE TOUCH: a claimed state file's mtime is refreshed on each hook
+  // invocation so the GC sees the session as live.
+  // -------------------------------------------------------------------------
+  test("direct-hit on existing state-<id>.json → mtime is touched (keep-alive), banner present", async () => {
+    const dirs = makeDirs();
+    writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
+    writeState(dirs, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
+    });
+    const statePath = join(dirs.stateDirWin, "state-A.json");
+
+    // Record mtime before the run.
+    const mtimeBefore = statSync(statePath).mtimeMs;
+
+    // Wait ~1.1s so the OS mtime granularity is clearly crossed.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
+    const r = run(dirs, stdinFor("A"));
+
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain("Flowy routing ACTIVE");
+
+    const mtimeAfter = statSync(statePath).mtimeMs;
+    expect(mtimeAfter).toBeGreaterThan(mtimeBefore);
+  });
+
+  // -------------------------------------------------------------------------
+  // FRESH PENDING (createdAtEpoch = now) + no STATE → claimed, banner.
+  // -------------------------------------------------------------------------
+  test("fresh PENDING (createdAtEpoch=now, no STATE) → claimed to state-<id>.json, banner, exit 0", () => {
+    const dirs = makeDirs();
+    writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
+    writeState(dirs, "PENDING", {
+      schema: "flowy-state-v1",
+      sessionId: "PENDING",
+      createdAtEpoch: Math.floor(Date.now() / 1000),
+      activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
+    });
+
+    const r = run(dirs, stdinFor("B"));
+
+    expect(r.code).toBe(0);
+    expect(existsSync(join(dirs.stateDirWin, "state-B.json"))).toBe(true);
+    expect(existsSync(join(dirs.stateDirWin, "state-PENDING.json"))).toBe(false);
+    expect(r.stdout).toContain("Flowy routing ACTIVE");
+    expect(r.stdout).toContain("superpowers-flow");
+  });
+
+  // -------------------------------------------------------------------------
+  // STALE PENDING (createdAtEpoch far in the past) → DELETED (self-heal), NOT
+  // claimed. This is the leak-killer: a leftover PENDING can no longer be
+  // claimed by an unrelated session after TTL has elapsed.
+  // -------------------------------------------------------------------------
+  test("stale PENDING (createdAtEpoch=now-99999) → deleted (not claimed), empty stdout, exit 0", () => {
+    const dirs = makeDirs();
+    writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
+    writeState(dirs, "PENDING", {
+      schema: "flowy-state-v1",
+      sessionId: "PENDING",
+      createdAtEpoch: Math.floor(Date.now() / 1000) - 99999,
+      activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
+    });
+
+    const r = run(dirs, stdinFor("C"));
+
+    expect(r.code).toBe(0);
+    // PENDING must be self-healed (deleted), never claimed.
+    expect(existsSync(join(dirs.stateDirWin, "state-C.json"))).toBe(false);
+    expect(existsSync(join(dirs.stateDirWin, "state-PENDING.json"))).toBe(false);
+    // No banner because nothing was claimed.
+    expect(r.stdout.trim()).toBe("");
+  });
+
+  // -------------------------------------------------------------------------
+  // PENDING WITH NO createdAtEpoch (legacy-leak killer) → treated stale →
+  // DELETED, not claimed. Prevents a pre-TTL PENDING from surviving forever.
+  // -------------------------------------------------------------------------
+  test("PENDING with no createdAtEpoch (legacy/un-stamped) → treated stale → deleted, not claimed, exit 0", () => {
+    const dirs = makeDirs();
+    writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
+    // Deliberately omit createdAtEpoch — this simulates a PENDING written by an
+    // older activator version that predates the TTL feature.
+    writeState(dirs, "PENDING", {
+      schema: "flowy-state-v1",
+      sessionId: "PENDING",
+      activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
+    });
+
+    const r = run(dirs, stdinFor("D"));
+
+    expect(r.code).toBe(0);
+    // Un-stamped PENDING is treated as stale: self-healed (deleted), never claimed.
+    expect(existsSync(join(dirs.stateDirWin, "state-D.json"))).toBe(false);
+    expect(existsSync(join(dirs.stateDirWin, "state-PENDING.json"))).toBe(false);
+    expect(r.stdout.trim()).toBe("");
+  });
+
+  // -------------------------------------------------------------------------
+  // DATE FAIL-CLOSED: if `date +%s` emits a non-integer, PENDING must be
+  // treated stale (deleted, not claimed).
+  //
+  // NOTE: shimming `date` inside a spawned Git-Bash process via PATH override
+  // is impractical on this Windows environment because Git Bash resolves its
+  // own /usr/bin/date before the PATH prefix. The all-digits `now` guard
+  // (`case "$now" in (*[!0-9]*|'') treat as STALE`) is therefore verified by
+  // code inspection only — not by a runtime test. If this constraint is ever
+  // relaxed (e.g. in a Linux CI environment where `date` shimming is easy),
+  // add a test that drops a fake `date` script on PATH that emits "bad-ts" and
+  // asserts the PENDING is deleted, not claimed.
+  // -------------------------------------------------------------------------
+  // SKIP: date shimming impractical in spawned Git-Bash on Windows (see comment above).
 
   // -------------------------------------------------------------------------
   // SYMLINKED PENDING (Fix 4) — against the relocated state dir.

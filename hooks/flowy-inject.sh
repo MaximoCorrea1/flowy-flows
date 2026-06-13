@@ -218,6 +218,11 @@ PROJECT_KEY="$(printf '%s' "$PROJECT_DIR" | tr -c 'A-Za-z0-9' '_')"
 STATE_DIR="$CLAUDE_HOME/flowy-state/$PROJECT_KEY"
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
+# (A) Source timing constants. Provides FLOWY_PENDING_TTL_SECONDS (default 120).
+# The 2>/dev/null suppresses "file not found" on clean installs; the fallback
+# ensures the variable is always set even if the constants file is absent.
+. "$(dirname "$0")/flowy-constants.sh" 2>/dev/null || FLOWY_PENDING_TTL_SECONDS=120
+
 # Project-local flow CONTENT root (inert without an out-of-repo state pointer).
 # Only used to RESOLVE FLOW.md for entries marked "location":"project".
 PROJECT_FLOWS_DIR="$PROJECT_DIR/.flowy/flows"
@@ -250,8 +255,52 @@ if [ -f "$PENDING" ] && [ ! -L "$PENDING" ]; then
     CLAIM_LOCK="$STATE_DIR/.claim.lock"
     # Re-check inside the lock (the winner may have just created STATE; and the
     # PENDING may have been claimed/removed between our outer test and the lock).
-    if [ -f "$PENDING" ] && [ ! -L "$PENDING" ] && [ ! -f "$STATE" ]; then
-      mv "$PENDING" "$STATE" 2>/dev/null || true
+    if [ -f "$PENDING" ] && [ ! -L "$PENDING" ]; then
+      # (B) TTL freshness gate. Parse createdAtEpoch from the PENDING file
+      # (line-oriented grep/sed, same pattern as NAMES/REFS parsing above).
+      createdAtEpoch="$(
+        grep -o '"createdAtEpoch"[[:space:]]*:[[:space:]]*[0-9][0-9]*' "$PENDING" \
+          | head -n 1 \
+          | sed 's/.*:[[:space:]]*//' \
+          | tr -d '[:space:]'
+      )"
+      now="$(date +%s 2>/dev/null)"
+
+      # Fail CLOSED: if `now` is empty or contains any non-digit, treat as stale.
+      # POSIX case matching: (*[!0-9]*|'') catches empty string and non-integers.
+      case "$now" in
+        *[!0-9]*|'' ) now="" ;;
+      esac
+
+      # Determine freshness:
+      #   FRESH = createdAtEpoch is all-digits AND now is valid AND
+      #           (now - createdAtEpoch) <= FLOWY_PENDING_TTL_SECONDS.
+      FRESH=0
+      if [ -n "$createdAtEpoch" ] && [ -n "$now" ]; then
+        case "$createdAtEpoch" in
+          *[!0-9]*|'' ) : ;;  # non-integer epoch → not fresh
+          * )
+            age=$((now - createdAtEpoch))
+            if [ "$age" -le "$FLOWY_PENDING_TTL_SECONDS" ] && [ "$age" -ge 0 ]; then
+              FRESH=1
+            fi
+            ;;
+        esac
+      fi
+
+      if [ "$FRESH" -eq 1 ]; then
+        # FRESH PENDING: claim it if STATE doesn't exist yet.
+        if [ ! -f "$STATE" ]; then
+          mv "$PENDING" "$STATE" 2>/dev/null || true
+        fi
+        # If STATE already exists: leave PENDING untouched (fresh orphan; it will
+        # be deleted once it goes stale on the next prompt).
+      else
+        # STALE (or un-stamped, or bad `now`): self-heal by deleting. A leftover
+        # PENDING from a prior session can no longer be claimed by an unrelated
+        # session after TTL has elapsed.
+        rm -f "$PENDING" 2>/dev/null || true
+      fi
     fi
     rmdir "$STATE_DIR/.claim.lock" 2>/dev/null || true
     CLAIM_LOCK=""
@@ -266,6 +315,10 @@ fi
 #    attacker-planted link could read an arbitrary file into the agent's context.
 # ---------------------------------------------------------------------------
 { [ -f "$STATE" ] && [ ! -L "$STATE" ]; } || exit 0
+
+# (C) Keep-alive touch: refresh STATE's mtime so the SessionStart GC treats
+# this session as live. Silently no-ops on read-only FS or permission error.
+touch "$STATE" 2>/dev/null || true
 
 # Fix 3: size-cap the state file before reading it. A legit flowy-state-v1 file
 # is well under 1KB; a pathological/corrupt giant file must not stall every
