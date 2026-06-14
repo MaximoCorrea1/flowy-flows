@@ -1,6 +1,6 @@
 ---
 name: coding-wisdom
-description: 8 classic programming books distilled into agent-readable rules — Clean Code, Refactoring, DDD, DDIA, Pragmatic Programmer, Clean Architecture, Release It!, Legacy Code. Session-start cheat-sheet priming + on-demand full ruleset loading.
+description: 8 classic programming books distilled into agent-readable rules: Clean Code, Refactoring, DDD, DDIA, Pragmatic Programmer, Clean Architecture, Release It!, Legacy Code. Session-prime cheat-sheet plus on-demand full ruleset loading.
 version: 0.3.0
 license: MIT
 upstream: https://github.com/mattpocock/agent-rules-books
@@ -17,9 +17,9 @@ actually follows while coding.
 This Flow uses a **hybrid delivery model** designed around how attention
 mechanisms work:
 
-1. **Session-start cheat-sheet** — 8 books × ~200 tokens of the most
-   important rules, inlined into CLAUDE.md. Stays in the high-attention
-   prefix zone for the entire session. Primes style decisions immediately.
+1. **Session-prime cheat-sheet:** the most important rules from 8 books,
+   kept in this Flow's FLOW.md (the engine re-reads it each session). Stays in
+   the high-attention zone the whole session and primes style decisions immediately.
 
 2. **On-demand full ruleset** — when a specific trigger fires (writing a
    new function, refactoring, designing a data model), the agent reads the

@@ -1,4 +1,4 @@
-# FLOW.md — Superpowers Flow
+# FLOW.md: Superpowers Flow
 
 > Routes the 14 superpowers agent-discipline skills so the right one fires at the right phase: the agent cannot skip brainstorming, TDD, debugging, review, or verification.
 > Skills by Jesse Vincent (https://github.com/obra/superpowers, MIT). Routing by Flowy.
