@@ -64,6 +64,11 @@ The wrapper passes the flow name. If the argument is `deactivate <flow-name>`, `
 
 ## ACTIVATE
 
+> **Output discipline (v0.5.1).** Perform Steps 1-4 SILENTLY: do NOT narrate path
+> resolution, the override scan, skill indexing, or state-file writes to the user.
+> The user sees exactly ONE success line (Step 5); nothing else on the happy path.
+> Verbose detail belongs only on an ERROR or when the user runs `status`.
+
 ### Step 1: Locate the Flow
 
 Resolve the FLOW.md (plugin FIRST for security — project-local paths are dev/UGC overrides that earn a warning):
@@ -181,15 +186,13 @@ In each claimed `state-<session_id>.json` you may leave its existing `sessionId`
 
 Never write a file that drops a previously-active Flow. If you are ever unsure which files exist, glob `<claude-home>/flowy-state/<project-key>/state-*.json`, write the merged superset into PENDING, and write the same merged set into every claimed (non-PENDING) match.
 
-### Step 5: Print confirmation
+### Step 5: Print confirmation (ONE line)
 
-```
-Flow activated: <flow-name>
-  Skills: <N> bundled (<comma-separated skill names>)
-  Scope: session-only
-  Routing: FLOW.md loaded — mandatory before every action (enforced by the auto-installed hook)
-  State: <claude-home>/flowy-state/<project-key>/state-PENDING.json written (the hook claims it on your next prompt)
-```
+Emit exactly one line, nothing else:
+
+`✓ <flow-name> active. Routing enforced from your next message. (run /flowy:<flow-name> status to verify)`
+
+Do not print the skills list, the state path, scope, or any explanation on the happy path. If the user wants detail, that is what `status` is for.
 
 ### Step 6: Bootstrap (if defined)
 
@@ -197,22 +200,14 @@ Check the FLOW.md for a session-bootstrap step. For superpowers-flow, this is `u
 
 The state file no longer tracks a `bootstrapFired` flag (it carries only `name` + `flowRef` + `location`). Within a single activation, fire the bootstrap once: read the bootstrap skill's SKILL.md from `<plugin-root>/flows/<flow-name>/skills/<bootstrap-name>/SKILL.md` (or per the skillIndex paths) and follow its instructions. If you are stacking onto a Flow that was already active this session and its bootstrap clearly already fired, skip re-firing.
 
-### Step 6b: Hook self-check (rewritten for the auto-installed hook)
+### Step 6b: Hook self-check (silent on success)
 
-The enforcement hook **auto-installs with the plugin** — there is nothing to configure by hand. To confirm enforcement is live:
+Verify `<claude-home>/flowy-state/<project-key>/state-PENDING.json` (or a claimed `state-<session_id>.json`) exists with your `activeFlows`. On success, print NOTHING extra; the Step 5 line already told the user it is active.
 
-1. **State file present:** after activation, `<claude-home>/flowy-state/<project-key>/state-PENDING.json` (or, if the hook already claimed it this session, `state-<session_id>.json` in that same dir) should exist and contain your `activeFlows`. Verify it exists.
-2. **Banner on the next prompt:** on your NEXT user prompt, the hook should inject a routing banner that begins `⚑ Flowy routing ACTIVE: <flow-name>`. That banner appearing is proof the hook is firing and claiming the PENDING file.
+Only if the state file is missing or unwritable, print the failure guidance:
+> ⚠ Couldn't write Flowy state at `<path>`. Routing will not enforce. Restart Claude Code (plugin hooks register at session start), then re-run `/flowy:<flow-name>`.
 
-Print this crisp confirmation (it tells the user exactly what to expect and what a failure looks like):
-
-> ✓ State written to `<claude-home>/flowy-state/<project-key>/state-PENDING.json`. Enforcement confirms on your NEXT prompt — you'll see the `⚑ Flowy routing ACTIVE` banner. If you do NOT see that banner next turn, the hook hasn't registered: restart Claude Code (plugin hooks register at session start), then re-run `/flowy <flow-name>`. You can verify any time with `/flowy status`, which reports whether the hook actually ran this session.
-
-If the banner does NOT appear on the next turn, tell the user:
-
-> ⚠ The Flowy hook didn't fire. Claude Code loads plugin hooks at session start, so a freshly installed plugin may need a restart to register its hook. Restart Claude Code and re-run `/flowy <flow-name>`. (Run `/flowy status` to confirm: it reports "Enforcement is live ✓" once the hook claims the session, or "Enforcement NOT confirmed ⚠" while only `state-PENDING.json` exists.)
-
-Do NOT tell users to install jq/python/PowerShell, hand-edit `settings.json`, or set up any hook themselves — the hook ships with the plugin and installs automatically. (This replaces the obsolete v0.2.0 self-check, which looked for a manually-installed PreToolUse hook and a root `.flowy-state.json`.)
+The "banner didn't fire, restart" troubleshooting now lives in the `status` command output (STATUS, below), not the activation path. Do NOT tell users to install jq/python/PowerShell or hand-edit `settings.json`; the hook ships with the plugin.
 
 ### Step 7: Routing obligation (CRITICAL)
 

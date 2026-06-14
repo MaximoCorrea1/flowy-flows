@@ -20,67 +20,17 @@
 
 ## How this works
 
-<!-- ===================================================================== -->
-<!-- LAYER 1 — UNIVERSAL MACHINERY. COPY THIS SECTION VERBATIM.            -->
-<!-- Every Flow needs exactly this contract. Do not reword the rules.      -->
-<!-- ===================================================================== -->
+The Flowy engine supplies the universal contract for every flow, so this file
+does not restate it: the **announce ritual** (`Routing: <phase>/<leaf> — <reason>`
+before acting), the **invoke/READ contract** (a leaf's `→ invoke <name>` means
+READ `skills/<name>/SKILL.md` fully, follow it, record the Gate's artifact, return),
+**host-integration** (the host's CLAUDE.md always wins), and the **post-compaction
+re-read**. See the blueprint's "How this works" for the required-core vs optional split.
 
-Each skill in `skills/` is a standalone `SKILL.md` the agent reads and follows.
-This FLOW.md is the routing layer — it decides WHEN each skill fires and what
-"done" means for each step. The skills are the *how*; this file is the *when*.
-
-**The invoke/READ contract — copy verbatim.** When a leaf below says
-`→ invoke <name>`:
-
-1. READ `skills/<name>/SKILL.md` in this folder, top to bottom.
-2. FOLLOW its instructions completely — do not summarize or skip.
-3. RECORD the named artifact the Gate asks for (a file, a note, a decision)
-   in the cross-node scratchpad before you move on.
-4. RETURN here for the next routing decision.
-
-**Host-integration line — copy verbatim.** This FLOW.md sits *above* the host
-agent's own rules. When the host has a global instruction (its CLAUDE.md, a
-project guard, a safety rule), the host rule wins. This file never tells the
-agent to ignore, override, or disregard the host — it only chooses which skill
-to read next.
-
-**The per-turn announce ritual — copy verbatim.** Before acting on ANY user
-message, state one line out loud:
-
-  `Routing: <PHASE> / <leaf> — <one-line reason>`
-
-If nothing matches: `Routing: none — <reason>`. The announce is not decoration;
-it is how you (and the human) catch a mis-route before work happens.
-
-**Priority tie-break — copy verbatim.** When two leaves both match, resolve in
-the order given in *Priority when multiple triggers match* below. Most-broken
-state is handled first; the default branch always loses.
-
-**Parent-level fallbacks (declared once) — copy verbatim.** These are checked
-on EVERY turn, before the phase-specific leaves, and they may re-enter an
-earlier phase:
-
-- The client changed the brief? → re-enter the phase the change invalidates.
-- You are blocked waiting on the client or a third party? → park, set a resume
-  condition, do not fake progress.
-- The human is asking you to advise, not to do the work? → answer; do not
-  silently start a phase.
-
-**Nested-vs-top-level loop guard — copy verbatim.** A leaf may send you back to
-an earlier phase (re-shoot, re-cull, re-edit). That is legal. An *unbounded*
-loop is not: if the same gate fails twice with no new information, STOP and
-surface the blocker to the human instead of re-running the same step a third
-time. Re-entry must carry new information; repetition without it is a stall.
-
-**Cross-node scratchpad rule — copy verbatim.** Artifacts produced by one leaf
-(the signed brief, the approved shot list, the cull selects, the gallery link)
-are written to a single running scratchpad for this session. Downstream leaves
-READ from the scratchpad rather than re-deriving. If a Gate's artifact is not
-in the scratchpad, its phase is not done — no matter how it *feels*.
-
-<!-- ===================================================================== -->
-<!-- END LAYER 1. Everything below is yours to adapt.                      -->
-<!-- ===================================================================== -->
+This example is a multi-phase pipeline, so it DOES use the optional disciplines:
+HARD named-artifact gates, parent-level fallbacks (scope-change / blocked /
+advisory), a loop-guard (no unbounded re-entry), a cross-node scratchpad, and
+reasoning-mode marks. A simple skill-router would omit most of these.
 
 ---
 

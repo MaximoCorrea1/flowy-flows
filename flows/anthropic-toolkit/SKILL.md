@@ -1,7 +1,7 @@
 ---
 name: anthropic-toolkit
-description: 13 official Anthropic skills bundled with a FLOW.md router — frontend design, webapp testing, Claude API, MCP builder, brand guidelines, and more.
-version: 0.1.0
+description: 13 official Anthropic skills bundled with a FLOW.md router: frontend design, webapp testing, Claude API, MCP builder, brand guidelines, and more.
+version: 0.2.0
 license: Apache-2.0
 upstream: https://github.com/anthropics/skills
 attribution: Skills by Anthropic
@@ -45,6 +45,4 @@ What Flowy added: the `FLOW.md` routing document.
 
 ## How to use
 
-1. Copy this Flow folder into your project
-2. Add the CLAUDE.md integration block from FLOW.md
-3. Describe what you want to build — the agent routes to the right skill
+Run `/flowy:anthropic-toolkit` to activate, then describe what you want to build. The Flowy hook enforces FLOW.md routing for the rest of the session, with no manual setup. (`/flowy:anthropic-toolkit status` to verify; `/flowy:anthropic-toolkit deactivate` to turn off.)

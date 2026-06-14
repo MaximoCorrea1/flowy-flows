@@ -1,7 +1,7 @@
 ---
 name: solo-launch-playbook
-description: 7-module marketing pipeline for solo founders — CRO audit, SEO research, content scoring, X threads, social content, outbound, growth experiments. From landing page to launch day to post-launch measurement.
-version: 0.1.0
+description: 7-module marketing pipeline for solo founders: CRO audit, SEO research, content scoring, X threads, social content, outbound, growth experiments. From landing page to launch day to post-launch measurement.
+version: 0.2.0
 license: MIT
 upstream: https://github.com/ericosiu/ai-marketing-skills
 attribution: Modules by Eric Siu / Single Grain
@@ -48,6 +48,4 @@ automation but the agent can follow the skill instructions manually.
 
 ## How to use
 
-1. Copy this Flow folder into your project
-2. Add one line to your CLAUDE.md: `Read [path]/FLOW.md at session start.`
-3. Tell the agent: "I'm launching [product]. Help me run the playbook."
+Run `/flowy:solo-launch-playbook` to activate, then tell the agent what you're launching. The Flowy hook enforces the FLOW.md launch pipeline for the rest of the session, with no manual setup. (`/flowy:solo-launch-playbook status` to verify; `/flowy:solo-launch-playbook deactivate` to turn off.)
