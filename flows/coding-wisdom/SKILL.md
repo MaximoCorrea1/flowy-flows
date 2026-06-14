@@ -1,7 +1,7 @@
 ---
 name: coding-wisdom
 description: 8 classic programming books distilled into agent-readable rules — Clean Code, Refactoring, DDD, DDIA, Pragmatic Programmer, Clean Architecture, Release It!, Legacy Code. Session-start cheat-sheet priming + on-demand full ruleset loading.
-version: 0.2.0
+version: 0.3.0
 license: MIT
 upstream: https://github.com/mattpocock/agent-rules-books
 attribution: Rules by Maciej Ciemborowicz
@@ -46,12 +46,7 @@ tokens default and adds full depth exactly when needed.
 
 ## How to install
 
-1. Copy this Flow folder into your project (e.g. `flows/coding-wisdom/`).
-2. Open `FLOW.md` and copy the entire **"Session-start anchor"** code block
-   into your project's `CLAUDE.md`.
-3. The agent will prime the cheat-sheet rules on every session start.
-4. The routing table in `FLOW.md` tells the agent when to load each full
-   book on demand.
+Run `/flowy:coding-wisdom` to activate. The Flowy hook enforces the FLOW.md (its session-prime rules + on-demand book loads) for the rest of the session, with no manual setup. (`/flowy:coding-wisdom status` to verify; `/flowy:coding-wisdom deactivate` to turn off.)
 
 ## Attribution
 
