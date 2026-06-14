@@ -1,7 +1,7 @@
 ---
 name: superpowers-flow
 description: All 14 superpowers skills bundled with a FLOW.md router that auto-invokes the right skill at the right moment. Curated by Flowy.
-version: 0.1.0
+version: 0.2.0
 license: MIT
 upstream: https://github.com/obra/superpowers
 attribution: Skills by Jesse Vincent
@@ -41,11 +41,7 @@ or the workflow is violated.
 
 ## How to use
 
-1. Copy this entire Flow folder into your project (or reference it)
-2. Add one line to your CLAUDE.md: `Read [path-to-this-flow]/FLOW.md at session start.`
-3. Work normally. The agent auto-routes to the right skill at each step.
-
-No additional plugin installation needed — the skills are bundled.
+Run `/flowy:superpowers-flow` to activate. The Flowy hook then enforces FLOW.md routing for the rest of the session, with no manual setup. (`/flowy:superpowers-flow status` to verify; `/flowy:superpowers-flow deactivate` to turn off.)
 
 ## What's inside
 
