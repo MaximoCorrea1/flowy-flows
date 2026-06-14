@@ -1,116 +1,54 @@
-# FLOW.md — Anthropic Toolkit
+# FLOW.md: Anthropic Toolkit
 
-> 13 official Anthropic skills with a routing layer. The agent reads
-> the right skill based on what you're building.
->
-> Skills by Anthropic (https://github.com/anthropics/skills, Apache 2.0).
-> FLOW.md routing by Flowy.
+> Routes 13 official Anthropic skills to whatever you are building: pick the one skill that matches, build, verify.
+> Skills by Anthropic (https://github.com/anthropics/skills, Apache 2.0). Routing by Flowy.
 
-## How this works
+<!-- The Flowy engine supplies the universal contract (announce ritual, invoke/READ,
+     host-wins, post-compaction re-read). This file carries only the routing. -->
 
-When the routing table says "invoke [skill-name]":
-→ Read `skills/[skill-name]/SKILL.md` in this directory
-→ Follow its instructions
-→ Return to FLOW.md for the next routing decision
-
----
-
-## CLAUDE.md Integration
-
-Add one line to your project's CLAUDE.md:
-
-```
-Read [path-to-this-flow]/FLOW.md at session start.
-```
-
-Replace `[path-to-this-flow]` with the actual path. All skill paths in
-this file are relative to FLOW.md's own directory.
-
----
-
-## Routing Logic
+## Routing
 
 ```
 USER DESCRIBES WHAT THEY WANT TO BUILD
-  │
-  ├─ Building something visual? → DISAMBIGUATE:
-  │   a) Production web page/component (HTML/CSS/JS, deployed app)?
-  │      → skills/frontend-design/SKILL.md
-  │   b) Self-contained claude.ai artifact / demo / widget (bundled, no server)?
-  │      → skills/web-artifacts-builder/SKILL.md
-  │   c) Static visual file — poster, certificate, infographic (PNG/PDF)?
-  │      → skills/canvas-design/SKILL.md
-  │
-  ├─ Test a web app (E2E, visual, Playwright)?
-  │   → skills/webapp-testing/SKILL.md
-  │
-  ├─ Claude API / Anthropic SDK integration?
-  │   → skills/claude-api/SKILL.md
-  │   (includes refs for Python, TS, Ruby, Go, Java, PHP, C#, curl)
-  │
-  ├─ MCP server / MCP tools?
-  │   → skills/mcp-builder/SKILL.md
-  │
-  ├─ Apply Anthropic's brand palette/typography to an existing artifact?
-  │   → skills/brand-guidelines/SKILL.md
-  │   (⚠ Applies Anthropic's specific colors + fonts, NOT for creating a new brand)
-  │
-  ├─ Apply a preset theme to a slide deck or document?
-  │   → skills/theme-factory/SKILL.md
-  │   (⚠ 10 built-in slide/doc themes, NOT for CSS tokens or design system codegen)
-  │
-  ├─ Generative art / algorithmic visuals?
-  │   → skills/algorithmic-art/SKILL.md
-  │
-  ├─ GIF for Slack / team chat?
-  │   → skills/slack-gif-creator/SKILL.md
-  │
-  ├─ Internal comms (announcement, memo, update)?
-  │   → skills/internal-comms/SKILL.md
-  │
-  ├─ Collaborative document?
-  │   → skills/doc-coauthoring/SKILL.md
-  │
-  └─ Create a new skill?
-      → skills/skill-creator/SKILL.md
+  ├─ building something visual? DISAMBIGUATE first:
+  │    ├─ production web page / component (a deployed app)?  → invoke frontend-design
+  │    ├─ self-contained claude.ai artifact / widget?       → invoke web-artifacts-builder
+  │    └─ static visual file (poster, cert, infographic)?   → invoke canvas-design
+  ├─ test a web app (E2E, visual, Playwright)?              → invoke webapp-testing
+  ├─ Claude API / Anthropic SDK integration?               → invoke claude-api
+  ├─ MCP server or MCP tools?                               → invoke mcp-builder
+  ├─ apply Anthropic's brand palette/type to an artifact?   → invoke brand-guidelines
+  ├─ apply a preset theme to a deck or document?            → invoke theme-factory
+  ├─ generative / algorithmic art?                          → invoke algorithmic-art
+  ├─ GIF for Slack / team chat?                             → invoke slack-gif-creator
+  ├─ internal comms (announcement, memo, update)?           → invoke internal-comms
+  ├─ collaborative document?                                → invoke doc-coauthoring
+  └─ create a new skill?                                    → invoke skill-creator
 ```
 
-### Combining skills
+## Priority on collision
 
-Some tasks benefit from multiple skills in sequence:
+1. **Disambiguate "visual" first**: web page (frontend-design) vs claude.ai artifact (web-artifacts-builder) vs static file (canvas-design). Most mis-routes happen here.
+2. Otherwise the most specific match wins; if two fit, pick the one matching the deliverable's final form (where it runs, how it ships).
 
-- **"Build a landing page"** → brand-guidelines (identity) → frontend-design (build) → webapp-testing (verify)
-- **"Build an MCP server for my app"** → mcp-builder (server) → webapp-testing (test)
-- **"Create a Claude-powered feature"** → claude-api (integration) → frontend-design (UI) → webapp-testing (test)
+## Sequences
 
-The agent reads each skill in sequence. Each skill's output feeds the next.
-
-**Cross-skill handoff** — before switching to the next skill in a
-sequence, record a brief scratchpad note:
-- Output files from the previous skill
-- Server command + port (if applicable)
-- Key variables the next skill needs
-
-This prevents the next skill from starting blind.
-
----
+Some builds chain skills. Record each output before switching:
+- "Build a landing page" → brand-guidelines (identity) → frontend-design (build) → webapp-testing (verify).
+- "Build an MCP server" → mcp-builder → webapp-testing.
+- "Claude-powered feature" → claude-api → frontend-design → webapp-testing.
 
 ## Out of scope
 
-This toolkit does NOT cover:
-- Backend APIs, REST/GraphQL servers
-- Mobile apps (iOS, Android, React Native)
-- CLI tools, shell scripts, data pipelines
-- Infrastructure, DevOps, Kubernetes
-- Creating a brand identity from scratch (brand-guidelines applies Anthropic's brand only)
-- CSS design tokens / design system codegen (theme-factory themes slide decks only)
+Backend APIs and servers, mobile apps, CLI tools, data pipelines, infra/DevOps, and creating a NEW brand from scratch. (brand-guidelines applies Anthropic's brand only; theme-factory themes decks and docs, it is not a design-token system.) For those, use the host agent's built-in capabilities.
 
-For these, use Claude Code's built-in capabilities directly.
+## You are rationalizing if you think…
 
----
+- "It's visual, so frontend-design." → First decide page vs claude.ai artifact vs static file; the wrong one wastes the build.
+- "brand-guidelines will make my brand." → No. It applies Anthropic's brand. A new brand is out of scope.
+- "theme-factory means design tokens." → No. It themes slide decks and documents only.
+- "I'll skip the test step." → If you built a web app, webapp-testing verifies it before you claim done.
 
 ## Attribution
 
-Skills from [anthropics/skills](https://github.com/anthropics/skills)
-by Anthropic, Apache License 2.0.
-FLOW.md routing by [Flowy](https://flowy.dev).
+Skills in `skills/` by Anthropic, Apache 2.0 (https://github.com/anthropics/skills). FLOW.md routing by Flowy, CC-BY-SA-4.0.
