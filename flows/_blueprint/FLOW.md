@@ -25,67 +25,52 @@ You do **not** write a hook, touch `settings.json`, or manage state. Build a goo
 
 ## How this works
 
-<!-- ===================================================================== -->
-<!-- LAYER 1 — UNIVERSAL MACHINERY. COPY THIS SECTION VERBATIM.            -->
-<!-- Every Flow needs exactly this contract. Do not reword the rules.      -->
-<!-- ===================================================================== -->
-
 Each skill in `skills/` is a standalone `SKILL.md` the agent reads and follows.
 This FLOW.md is the routing layer — it decides WHEN each skill fires and what
 "done" means for each step. The skills are the *how*; this file is the *when*.
 
-**The invoke/READ contract — copy verbatim.** When a leaf below says
-`→ invoke <name>`:
+### The engine gives you the universal contract — do NOT paste it
 
-1. READ `skills/<name>/SKILL.md` in this folder, top to bottom.
-2. FOLLOW its instructions completely — do not summarize or skip.
-3. RECORD the named artifact the Gate asks for (a file, a note, a decision)
-   in the cross-node scratchpad before you move on.
-4. RETURN here for the next routing decision.
+When your Flow is activated (`/flowy <slug>`), the Flowy engine (the activator's
+routing obligation, read on activation and re-read after every compaction)
+already supplies these for EVERY flow, for free. Never restate them in your file:
 
-**Host-integration line — copy verbatim.** This FLOW.md sits *above* the host
-agent's own rules. When the host has a global instruction (its CLAUDE.md, a
-project guard, a safety rule), the host rule wins. This file never tells the
-agent to ignore, override, or disregard the host — it only chooses which skill
-to read next.
+- **Announce ritual** — before acting on any message, the agent states one line:
+  `Routing: <phase>/<leaf> — <reason>` (or `Routing: none`).
+- **invoke/READ contract** — when a leaf says `→ invoke <name>`, the agent READS
+  `skills/<name>/SKILL.md` fully, follows it, records the Gate's named artifact,
+  then returns here for the next decision.
+- **Host-integration** — this FLOW.md sits ABOVE the host's own rules; the host
+  (its CLAUDE.md, project guards, safety rules) always wins. A flow never tells
+  the agent to ignore or override the host.
+- **Post-compaction re-read** — routing survives long sessions; the engine
+  re-reads this file and the active phase is restated.
 
-**The per-turn announce ritual — copy verbatim.** Before acting on ANY user
-message, state one line out loud:
+### Required core — every flow MUST have these
 
-  `Routing: <PHASE> / <leaf> — <one-line reason>`
+- `## Routing` — the decision tree: `condition? → invoke <skill>` + a **Gate**
+  (a named artifact that must exist to advance).
+- `## Priority on collision` — when >1 leaf matches, the resolve order.
+- `## You are rationalizing if…` — the lies a hurried agent tells, each rebutted.
+- `## Attribution` — credit + license.
 
-If nothing matches: `Routing: none — <reason>`. The announce is not decoration;
-it is how you (and the human) catch a mis-route before work happens.
+### Optional building blocks — add only if your flow needs them
 
-**Priority tie-break — copy verbatim.** When two leaves both match, resolve in
-the order given in *Priority when multiple triggers match* below. Most-broken
-state is handled first; the default branch always loses.
+Include these for a **multi-phase pipeline**; omit them for a simple skill-router:
 
-**Parent-level fallbacks (declared once) — copy verbatim.** These are checked
-on EVERY turn, before the phase-specific leaves, and they may re-enter an
-earlier phase:
+- `## Phases` — a named spine, each phase exiting on a HARD named-artifact gate.
+- **Reasoning-mode marks** (FULL / CAVE / MED) — spend judgment where taste lives.
+- **Loop-guard** — if the same Gate fails twice with no new information, STOP and
+  surface the blocker; re-entry must carry new information.
+- **Cross-node scratchpad** — write each Gate's artifact to one running scratchpad;
+  downstream leaves READ it instead of re-deriving.
+- **Parent-level fallbacks** — checked before phase leaves: brief changed →
+  re-enter the invalidated phase; blocked on a third party → park with a resume
+  condition; asked to advise (not do) → answer, don't start a phase.
+- `## Compose with` (overlay flows) · `## Session-prime` (always-on context).
 
-- The client changed the brief? → re-enter the phase the change invalidates.
-- You are blocked waiting on the client or a third party? → park, set a resume
-  condition, do not fake progress.
-- The human is asking you to advise, not to do the work? → answer; do not
-  silently start a phase.
-
-**Nested-vs-top-level loop guard — copy verbatim.** A leaf may send you back to
-an earlier phase (re-shoot, re-cull, re-edit). That is legal. An *unbounded*
-loop is not: if the same gate fails twice with no new information, STOP and
-surface the blocker to the human instead of re-running the same step a third
-time. Re-entry must carry new information; repetition without it is a stall.
-
-**Cross-node scratchpad rule — copy verbatim.** Artifacts produced by one leaf
-(the signed brief, the approved shot list, the cull selects, the gallery link)
-are written to a single running scratchpad for this session. Downstream leaves
-READ from the scratchpad rather than re-deriving. If a Gate's artifact is not
-in the scratchpad, its phase is not done — no matter how it *feels*.
-
-<!-- ===================================================================== -->
-<!-- END LAYER 1. Everything below is yours to adapt.                      -->
-<!-- ===================================================================== -->
+Everything below shows these in a worked, multi-phase shape. Keep what your
+domain needs; delete the rest.
 
 ---
 
