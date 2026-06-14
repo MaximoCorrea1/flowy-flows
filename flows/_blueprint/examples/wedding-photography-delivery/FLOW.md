@@ -53,7 +53,7 @@ reasoning-mode marks. A simple skill-router would omit most of these.
 
 ---
 
-## Decision tree
+## Routing
 
 <!-- ===================================================================== -->
 <!-- LAYER 3 — NESTED ECA LEAVES. This is the core router.                 -->
@@ -157,7 +157,7 @@ USER MESSAGE RECEIVED
 
 ---
 
-## Priority when multiple triggers match
+## Priority on collision
 
 When more than one leaf could fire on the same message, resolve in this order.
 Most-broken state first; lifecycle order for ties; the default always loses.
@@ -283,7 +283,7 @@ exits on a hard note/set/link); preserve that when you swap in your domain.
 
 ---
 
-## You are rationalizing if…
+## You are rationalizing if you think…
 
 These are the lies a tired photographer (or a hurried agent) tells. Each one has
 a one-line rebuttal. If you catch yourself saying the left side, do the right.

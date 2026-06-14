@@ -51,6 +51,7 @@ These modules were built for funded growth teams. For a solo founder at $0:
 - "Skip the audit, just launch." → Phase 1 first. Launching a leaky page wastes the traffic you fought for.
 - "Run all the modules at once." → Phases are sequential; each needs the prior one's output.
 - "This needs a budget." → No. Every paid step has an organic substitute (see constraints).
+- "I know which phase I'm in after compaction." → After compaction, re-read this file and restate which phase you are in before continuing.
 
 ## Attribution
 

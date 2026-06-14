@@ -52,6 +52,7 @@ This overlay layers under any skill Flow. Example: inside superpowers-flow's tes
 - "I'll keep the rules in mind, no need to read the book." → Read the full file at the trigger. Primed rules fade by mid-session; the deep load is when it counts.
 - "This code is fine as-is." → Boy Scout Rule. Leave it cleaner than you found it.
 - "I'll add a test after I change it." → Untested code gets a characterization test FIRST (Legacy Code).
+- "The rules are still in context after compaction." → After compaction, re-read this file; reload the session-prime rules and the on-demand triggers.
 
 ## Attribution
 

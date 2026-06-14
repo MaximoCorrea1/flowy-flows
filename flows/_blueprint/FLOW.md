@@ -51,7 +51,7 @@ already supplies these for EVERY flow, for free. Never restate them in your file
 - `## Routing` — the decision tree: `condition? → invoke <skill>` + a **Gate**
   (a named artifact that must exist to advance).
 - `## Priority on collision` — when >1 leaf matches, the resolve order.
-- `## You are rationalizing if…` — the lies a hurried agent tells, each rebutted.
+- `## You are rationalizing if you think…` — the lies a hurried agent tells, each rebutted.
 - `## Attribution` — credit + license.
 
 ### Optional building blocks — add only if your flow needs them
@@ -90,7 +90,7 @@ domain needs; delete the rest.
 
 ---
 
-## Decision tree
+## Routing
 
 <!-- ===================================================================== -->
 <!-- LAYER 3 — NESTED ECA LEAVES. This is the core router.                 -->
@@ -138,7 +138,7 @@ USER MESSAGE RECEIVED
 
 ---
 
-## Priority when multiple triggers match
+## Priority on collision
 
 When more than one leaf could fire on the same message, resolve in this order.
 Most-broken state first; lifecycle order for ties; the default always loses.
@@ -253,7 +253,7 @@ named artifact); preserve that when you swap in your domain.
 
 ---
 
-## You are rationalizing if…
+## You are rationalizing if you think…
 
 These are the lies a hurried agent tells. Write your own domain's versions — see
 `examples/wedding-photography-delivery/FLOW.md` for vivid ones. Each left-side

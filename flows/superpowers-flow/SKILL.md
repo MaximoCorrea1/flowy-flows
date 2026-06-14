@@ -48,7 +48,7 @@ Run `/flowy:superpowers-flow` to activate. The Flowy hook then enforces FLOW.md 
 ```
 superpowers-flow/
 ├── SKILL.md          # This file (overview + attribution)
-├── FLOW.md           # Routing document — the value-add
+├── FLOW.md           # Routing document: the value-add
 ├── LICENSE           # MIT (same as superpowers)
 ├── skills/           # All 14 superpowers skills (Jesse Vincent, MIT)
 │   ├── brainstorming/

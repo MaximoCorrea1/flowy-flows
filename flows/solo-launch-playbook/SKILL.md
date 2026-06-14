@@ -5,6 +5,7 @@ version: 0.2.0
 license: MIT
 upstream: https://github.com/ericosiu/ai-marketing-skills
 attribution: Modules by Eric Siu / Single Grain
+skillIndex: [modules/conversion-ops, modules/seo-ops, modules/content-ops, modules/x-longform-post, modules/short-form-pipeline, modules/outbound-engine, modules/growth-engine]
 ---
 
 # Solo Launch Playbook
@@ -43,8 +44,8 @@ Some modules include Python scripts that need:
 - Optional API keys: `AHREFS_TOKEN` (seo-ops), Google Search Console
   auth (seo-ops), `OPENAI_API_KEY` (content-ops scoring)
 
-The SKILL.md files work WITHOUT the Python scripts — the scripts add
-automation but the agent can follow the skill instructions manually.
+The SKILL.md files work WITHOUT the Python scripts. The scripts add
+automation, but the agent can follow the skill instructions manually.
 
 ## How to use
 
