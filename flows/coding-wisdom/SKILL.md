@@ -5,6 +5,7 @@ version: 0.3.0
 license: MIT
 upstream: https://github.com/mattpocock/agent-rules-books
 attribution: Rules by Maciej Ciemborowicz
+skillIndex: [books/clean-code, books/refactoring, books/the-pragmatic-programmer, books/clean-architecture, books/designing-data-intensive-applications, books/domain-driven-design, books/working-effectively-with-legacy-code, books/release-it]
 ---
 
 # Coding Wisdom
@@ -21,10 +22,10 @@ mechanisms work:
    kept in this Flow's FLOW.md (the engine re-reads it each session). Stays in
    the high-attention zone the whole session and primes style decisions immediately.
 
-2. **On-demand full ruleset** — when a specific trigger fires (writing a
+2. **On-demand full ruleset:** when a specific trigger fires (writing a
    new function, refactoring, designing a data model), the agent reads the
-   FULL book file at that moment — adjacent to the task, maximum attention
-   weight, minimum token bloat.
+   FULL book file at that moment, adjacent to the task, for maximum attention
+   weight and minimum token bloat.
 
 **Why not "load all rules at session start":** rules loaded at token 0 fall
 into the "lost in the middle" attention zone by turn 10–15. The v0.1 model

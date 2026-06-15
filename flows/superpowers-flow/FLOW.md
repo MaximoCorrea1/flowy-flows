@@ -25,6 +25,8 @@ USER MESSAGE
   ├─ need parallel isolated branches?        → invoke using-git-worktrees
   ├─ ad-hoc parallel research / fan-out?     → invoke dispatching-parallel-agents
   ├─ want to author a custom skill?          → invoke writing-skills
+  ├─ scope changed mid-task (brief or reqs changed)?  → re-enter the earliest invalidated phase (brainstorming or writing-plans)
+  ├─ blocked / waiting on an external dependency?  → park: record the blocker and resume condition; do not fake progress
   └─ question, not work (advise / explain)?  → answer only; no files change
 ```
 

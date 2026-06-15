@@ -48,6 +48,7 @@ Backend APIs and servers, mobile apps, CLI tools, data pipelines, infra/DevOps, 
 - "brand-guidelines will make my brand." → No. It applies Anthropic's brand. A new brand is out of scope.
 - "theme-factory means design tokens." → No. It themes slide decks and documents only.
 - "I'll skip the test step." → If you built a web app, webapp-testing verifies it before you claim done.
+- "The summary already captured my skill choice." → After compaction, re-read this file and re-run the disambiguation before routing.
 
 ## Attribution
 
