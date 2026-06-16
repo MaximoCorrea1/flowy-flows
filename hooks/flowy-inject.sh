@@ -25,9 +25,9 @@
 # STATE FILE SHAPE — schema "flowy-state-v1"
 #   Written by the activator unit to the OUT-OF-REPO state dir (see RR2 below):
 #     <CLAUDE_HOME>/flowy-state/<project-key>/state-<session_id>.json
-#   (or .../state-PENDING.json before a session_id is known), where
-#     CLAUDE_HOME  = $CLAUDE_PLUGIN_ROOT up to (excluding) the last /plugins/
-#     project-key  = $CLAUDE_PROJECT_DIR with every non-[A-Za-z0-9] char → '_'
+#   (or .../state-PENDING.json before a session_id is known). The dir is derived
+#   by the shared helper hooks/flowy-paths.sh (flowy_state_dir); see that file for
+#   the canonical, path-form-independent key algorithm (0.6.2+).
 #
 #     {
 #       "schema": "flowy-state-v1",
@@ -480,7 +480,7 @@ IFS="$OLD_IFS"
 #    appear. No active resolvable/corrupt flows → no output.
 # ---------------------------------------------------------------------------
 if [ -n "$LIVE_NAMES" ]; then
-  printf '%s\n' "⚑ Flowy routing ACTIVE: $LIVE_NAMES. Before acting: evaluate the FLOW.md routing tree, state your Routing: decision, then INVOKE the matching skill (do not inline it from memory)."
+  printf '%s\n' "⚑ Flowy routing ACTIVE: $LIVE_NAMES. Before acting: evaluate the FLOW.md routing tree, state your Routing: decision, then INVOKE the matching skill (read its SKILL.md and follow it; do not inline from memory)."
   printf '%s\n' "Active Flows: $LIVE_NAMES"
   printf '%s\n' "FLOW.md (re-read after any context compaction): $LIVE_REFS"
 fi

@@ -1,10 +1,13 @@
 #!/usr/bin/env sh
 # =============================================================================
 # flowy-paths.sh — SINGLE SOURCE OF TRUTH for the out-of-repo Flowy state dir.
-# Sourced (never executed); defines flowy_canonical_key + flowy_state_dir.
-#   * the hook + GC `. "$(dirname "$0")/flowy-paths.sh"` then call flowy_state_dir.
-#   * the activator + tests invoke via:
-#       sh -c '. "$1"; flowy_state_dir "$2" "$3"' _ <projdir> <pluginroot-or-home>
+# Sourced (never executed); defines flowy_canonical_key + flowy_state_dir +
+# flowy_state_root.
+#   * the hook + GC `. "$(dirname "$0")/flowy-paths.sh"` then call the functions.
+#   * tests source the helper path explicitly (the helper is $1):
+#       sh -c '. "$1"; flowy_state_dir "$2" "$3"' _ <helper-path> <projdir> <pluginroot>
+#   * the activator passes the plugin root and builds the helper path from it:
+#       sh -c '. "$1/hooks/flowy-paths.sh"; flowy_state_dir "${CLAUDE_PROJECT_DIR:-$2}" "$1"' _ <plugin-root> <projdir>
 #
 # WHY IT EXISTS (Bug E): three sites (hook, gc, activator) each derived the
 # state key inline from CLAUDE_PROJECT_DIR with NO path normalization, so the
@@ -37,6 +40,11 @@ flowy_canonical_key() {
 
   # 1. backslashes -> slashes (so E:\a\b and E:/a/b normalize together).
   _p="$(printf '%s' "$_p" | tr '\\' '/')"
+  # 1b. Detect a UNC root (\\server\share -> //server/share) BEFORE collapsing
+  #     slashes, so a single-letter UNC server (//s/share) is NOT later mistaken
+  #     for an MSYS drive mount (/s/share) and collapsed onto drive S:\share's key.
+  _unc=0
+  case "$_p" in //*) _unc=1 ;; esac
   # 2. collapse repeated slashes, then strip a single trailing slash.
   _p="$(printf '%s' "$_p" | sed 's#//*#/#g')"
   case "$_p" in
@@ -59,8 +67,9 @@ flowy_canonical_key() {
       _p="$_d:\\$(printf '%s' "$_rest" | tr '/' '\\')"
       ;;
     /[A-Za-z]/*)
-      # Single-letter root: an MSYS drive ONLY when actually under MSYS.
-      if [ "$_msys" = "1" ]; then
+      # Single-letter root: an MSYS drive ONLY when actually under MSYS AND not a
+      # collapsed UNC path (//s/... is a network share, not drive S).
+      if [ "$_msys" = "1" ] && [ "$_unc" = "0" ]; then
         _d="$(printf '%s' "$_p" | cut -c2 | tr 'a-z' 'A-Z')"
         _rest="${_p#/?/}"
         _p="$_d:\\$(printf '%s' "$_rest" | tr '/' '\\')"
@@ -102,6 +111,17 @@ flowy_state_root() {
   case "$_home" in
     */.claude) : ;;
     *) return 1 ;;
+  esac
+
+  # Canonicalize a Windows drive prefix to the MSYS /<letter>/ form so the root
+  # STRING is byte-identical whether the caller passed C:\..., C:/..., or /c/...
+  # (all resolve to the same dir under Git Bash, but the hook + activator must
+  # agree on the string, not just the physical path).
+  case "$_home" in
+    [A-Za-z]:/*)
+      _hd="$(printf '%s' "$_home" | cut -c1 | tr 'A-Z' 'a-z')"
+      _home="/$_hd/${_home#?:/}"
+      ;;
   esac
 
   printf '%s' "$_home/flowy-state"

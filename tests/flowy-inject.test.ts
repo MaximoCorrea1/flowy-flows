@@ -343,7 +343,7 @@ test(
 // MSYS form. Pre-fix, the hook (Windows form -> E__) and the activator (MSYS
 // form -> _e_) wrote/read different dirs and the banner silently vanished.
 // ---------------------------------------------------------------------------
-describe("Bug E: CLAUDE_PROJECT_DIR path-form independence", () => {
+(HAVE_GIT_BASH ? describe : describe.skip)("Bug E + D: path-form independence + invoke banner", () => {
   test("the hook fires when CLAUDE_PROJECT_DIR is the WINDOWS backslash form (production shape)", () => {
     if (!HAVE_GIT_BASH) return;
     const dirs = makeDirs();
@@ -397,8 +397,9 @@ describe("Bug E: CLAUDE_PROJECT_DIR path-form independence", () => {
     const res = runHook({ projectDir: dirs.projectDirEnv, pluginRoot: dirs.pluginRootEnv, stdin: stdinFor("bugd") });
     expect(res.code).toBe(0);
     expect(res.stdout).toMatch(/invoke/i); // nudges invoke, not just "state routing"
-    expect(res.stdout).toContain("FLOW.md"); // carries a FLOW.md path label
-    expect(res.stdout).toContain("flows/superpowers-flow/FLOW.md"); // the resolvable path itself
+    // The ABSOLUTE resolved path (not just the relative ref) — that is what makes
+    // "re-read after compaction" actionable for the agent (F11).
+    expect(res.stdout).toContain(`${dirs.pluginRootEnv}/flows/superpowers-flow/FLOW.md`);
     expect(res.stdout.toLowerCase()).toContain("compaction"); // re-read-after-compaction hint
   });
 });

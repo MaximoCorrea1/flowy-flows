@@ -20,10 +20,11 @@
 #   * No-op when the state dir is absent.
 #   * No jq / python / node — POSIX sh only.
 #
-# STATE DIR DERIVATION (MUST be byte-identical to flowy-inject.sh §2b)
-#   CLAUDE_HOME = ${CLAUDE_PLUGIN_ROOT%/plugins/*}   (must end in /.claude)
-#   PROJECT_KEY = CLAUDE_PROJECT_DIR with every non-[A-Za-z0-9] char → '_'
-#   STATE_DIR   = $CLAUDE_HOME/flowy-state/$PROJECT_KEY
+# STATE ROOT DERIVATION (delegated to the shared helper)
+#   The GC sources hooks/flowy-paths.sh and calls flowy_state_root to get
+#   <claude-home>/flowy-state, then sweeps EVERY per-project dir under it. It
+#   derives NO project key (key-agnostic), so it cannot drift from the hook and
+#   it self-heals legacy/divergent-key orphan dirs from the pre-0.6.2 bug.
 #
 # COUPLING NOTE
 #   The keep-alive `touch` that refreshes a session's state file mtime (so

@@ -1,6 +1,6 @@
 ---
 name: _activator
-description: Internal activator for Flowy Flows. Invoked by flow wrapper skills (flowy:superpowers-flow, etc.) to read the FLOW.md, index bundled skills, write a flowy-state-v1 state file under .flowy/, and enforce mandatory routing. Not for direct user invocation.
+description: Internal activator for Flowy Flows. Invoked by flow wrapper skills (flowy:superpowers-flow, etc.) to read the FLOW.md, index bundled skills, write a flowy-state-v1 state file to the out-of-repo state dir (never under the project repo's .flowy/), and enforce mandatory routing. Not for direct user invocation.
 ---
 
 # Flowy Activator (Bundled)
@@ -30,7 +30,7 @@ sh -c '. "$1/hooks/flowy-paths.sh"; flowy_state_dir "${CLAUDE_PROJECT_DIR:-$2}" 
 ```
 
 - `<plugin-root>` = your wrapper's "Base directory for this skill" with the trailing `skills/<flow-name>` removed. Example: base `~/.claude/plugins/cache/flowy-flows/flowy/0.6.2/skills/superpowers-flow` → plugin-root `~/.claude/plugins/cache/flowy-flows/flowy/0.6.2`.
-- `<project-dir>` = the project root path (the working directory Claude Code shows you). The command prefers the live `$CLAUDE_PROJECT_DIR` when the Bash env exposes it and falls back to the literal you pass; the helper **canonicalizes either form to the same key**, so you do not need to match any particular path style — that canonicalization is what guarantees you and the hook agree.
+- `<project-dir>` = the project root path (the working directory Claude Code shows you). Substitute the ACTUAL path and KEEP the double-quotes shown: it can contain a space (e.g. `Projects VS`), so an unquoted value would word-split and produce the wrong key. Never pass the literal `<project-dir>` placeholder. The command prefers the live `$CLAUDE_PROJECT_DIR` when the Bash env exposes it and falls back to the literal you pass. The helper **canonicalizes either form to the same key**, so you do not need to match any particular path style; that canonicalization is what guarantees you and the hook agree.
 - Capture the single line it prints — that absolute path is your **STATE_DIR** for the rest of this skill. If it prints NOTHING, the plugin layout is unexpected (no `/.claude` home); report that and stop — do NOT guess a path.
 
 Then `mkdir -p "<STATE_DIR>"` if missing and write `state-PENDING.json` there.

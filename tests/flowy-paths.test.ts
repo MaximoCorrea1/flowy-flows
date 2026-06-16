@@ -103,4 +103,20 @@ d("flowy-paths.sh — canonical state dir", () => {
     expect(root("/c/Users/U/.claude")).toBe(HOME_PREFIX); // accepts the claude-home directly
     expect(root("/c/Users/U/not-a-home")).toBe(""); // no-op on a non-.claude home
   });
+
+  test("UNC single-letter server does NOT collide with a same-letter Windows drive (F1)", () => {
+    // \\s\share\proj is a NETWORK path; S:\share\proj is local drive S. Pre-fix the
+    // MSYS arm collapsed //s -> drive S and merged their keys (cross-project bleed).
+    const unc = stateDir("\\\\s\\share\\proj").out;
+    const drive = stateDir("S:\\share\\proj").out;
+    expect(drive).toBe(`${HOME_PREFIX}/S__share_proj`);
+    expect(unc).not.toBe(drive);
+  });
+
+  test("Windows-form and POSIX-form plugin root yield the SAME state dir (F2: home canonicalized)", () => {
+    const winRoot = "C:\\Users\\U\\.claude\\plugins\\cache\\flowy-flows\\flowy\\0.6.2";
+    const posixRoot = "/c/Users/U/.claude/plugins/cache/flowy-flows/flowy/0.6.2";
+    expect(stateDir("E:\\proj", winRoot).out).toBe(`${HOME_PREFIX}/E__proj`);
+    expect(stateDir("E:\\proj", winRoot).out).toBe(stateDir("E:\\proj", posixRoot).out);
+  });
 });
