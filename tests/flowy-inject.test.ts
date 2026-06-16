@@ -382,6 +382,25 @@ describe("Bug E: CLAUDE_PROJECT_DIR path-form independence", () => {
     expect(win.stdout).toContain("Flowy routing ACTIVE");
     expect(msys.stdout).toContain("Flowy routing ACTIVE");
   });
+
+  test("Bug D: the banner reinforces INVOKE (not just state routing) and carries the resolvable FLOW.md path", () => {
+    if (!HAVE_GIT_BASH) return;
+    const dirs = makeDirs();
+    writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
+    writeState(dirs, "bugd", {
+      schema: "flowy-state-v1",
+      sessionId: "bugd",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md", location: "plugin" },
+      ],
+    });
+    const res = runHook({ projectDir: dirs.projectDirEnv, pluginRoot: dirs.pluginRootEnv, stdin: stdinFor("bugd") });
+    expect(res.code).toBe(0);
+    expect(res.stdout).toMatch(/invoke/i); // nudges invoke, not just "state routing"
+    expect(res.stdout).toContain("FLOW.md"); // carries a FLOW.md path label
+    expect(res.stdout).toContain("flows/superpowers-flow/FLOW.md"); // the resolvable path itself
+    expect(res.stdout.toLowerCase()).toContain("compaction"); // re-read-after-compaction hint
+  });
 });
 
 // ---------------------------------------------------------------------------

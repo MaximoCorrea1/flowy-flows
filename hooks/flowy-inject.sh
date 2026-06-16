@@ -359,10 +359,13 @@ LOCATIONS="$(
 
 [ -n "$NAMES" ] || exit 0
 
-# Resolve each flow. Build two accumulators:
+# Resolve each flow. Build accumulators:
 #   LIVE_NAMES  — flows whose FLOW.md resolved (banner)
+#   LIVE_REFS   — their resolved FLOW.md paths (banner; makes "re-read after
+#                 compaction" actionable instead of a bare instruction)
 #   CORRUPT     — flows active in state but unresolvable (warning)
 LIVE_NAMES=""
+LIVE_REFS=""
 CORRUPT_NAMES=""
 
 # Iterate names positionally; pull the Nth flowRef to match.
@@ -446,11 +449,15 @@ for NAME in $NAMES; do
   [ -n "$SAFE_NAME" ] || SAFE_NAME="[invalid-name]"
 
   if [ -n "$RESOLVED" ]; then
-    # LIVE_NAMES is comma-joined: it is emitted inline in the banner.
+    # LIVE_NAMES + LIVE_REFS are comma-joined in lockstep; both emitted in the
+    # banner. RESOLVED is built from PLUGIN_ROOT + the already-allowlisted
+    # REF/NAME (charset-guarded above), so it carries no injection vector.
     if [ -z "$LIVE_NAMES" ]; then
       LIVE_NAMES="$SAFE_NAME"
+      LIVE_REFS="$RESOLVED"
     else
       LIVE_NAMES="$LIVE_NAMES, $SAFE_NAME"
+      LIVE_REFS="$LIVE_REFS, $RESOLVED"
     fi
   else
     # CORRUPT_NAMES is NEWLINE-separated (Fix 6): one warning line per name, and
@@ -473,8 +480,9 @@ IFS="$OLD_IFS"
 #    appear. No active resolvable/corrupt flows → no output.
 # ---------------------------------------------------------------------------
 if [ -n "$LIVE_NAMES" ]; then
-  printf '%s\n' "⚑ Flowy routing ACTIVE: $LIVE_NAMES. Evaluate the FLOW.md routing tree before acting; state your Routing: decision."
+  printf '%s\n' "⚑ Flowy routing ACTIVE: $LIVE_NAMES. Before acting: evaluate the FLOW.md routing tree, state your Routing: decision, then INVOKE the matching skill (do not inline it from memory)."
   printf '%s\n' "Active Flows: $LIVE_NAMES"
+  printf '%s\n' "FLOW.md (re-read after any context compaction): $LIVE_REFS"
 fi
 
 if [ -n "$CORRUPT_NAMES" ]; then
