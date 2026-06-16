@@ -76,6 +76,10 @@ function toPosix(winPath: string): string {
     .replace(/\\/g, "/");
 }
 
+// The shared key-derivation helper (single source of truth). The oracle below
+// shells out to it so the test can never encode a parallel/stale transform.
+const HELPER = toPosix(join(HERE, "..", "hooks", "flowy-paths.sh"));
+
 /**
  * Mirror the hook's PROJECT_KEY transform EXACTLY: every char outside
  * [A-Za-z0-9] becomes '_'. The hook computes this with `tr -c 'A-Za-z0-9' '_'`
@@ -83,7 +87,15 @@ function toPosix(winPath: string): string {
  * we pass in the env var (the POSIX form).
  */
 function projectKey(projectDirEnvValue: string): string {
-  return projectDirEnvValue.replace(/[^A-Za-z0-9]/g, "_");
+  // SINGLE SOURCE OF TRUTH: shell out to flowy-paths.sh's flowy_canonical_key so
+  // this oracle is byte-identical to what the hook/GC/activator compute.
+  if (!GIT_BASH) return projectDirEnvValue.replace(/[^A-Za-z0-9]/g, "_");
+  const res = spawnSync(
+    GIT_BASH,
+    ["-c", '. "$1"; flowy_canonical_key "$2"', "_", HELPER, projectDirEnvValue],
+    { encoding: "utf8" },
+  );
+  return (res.stdout ?? "").trim();
 }
 
 interface Dirs {
@@ -477,5 +489,32 @@ d("flowy-gc.sh", () => {
     expect(r.code).toBe(0);
     // Not matched by state-*.json glob → must survive.
     expect(existsSync(otherPath)).toBe(true);
+  });
+
+  // -------------------------------------------------------------------------
+  // DECOUPLED SWEEP: the GC sweeps EVERY dir under the state root, not just the
+  // current project's key. A legacy/divergent-key orphan dir (e.g. the _e_...
+  // dir from Bug E) is therefore self-healed on the next session start.
+  // -------------------------------------------------------------------------
+  test("sweeps ALL project dirs under the state root (legacy divergent-key orphan self-heals)", () => {
+    const dirs = makeDirs();
+    // A SECOND state dir under the SAME flowy-state root, simulating a legacy
+    // pre-canonicalization key left behind by Bug E.
+    const legacyDirWin = join(dirs.stateDirWin, "..", "_e_legacy_orphan_project");
+    mkdirSync(legacyDirWin, { recursive: true });
+
+    const agedCurrent = writeStateFile(dirs.stateDirWin, "state-old.json");
+    ageFile(agedCurrent, 20);
+    const agedLegacy = writeStateFile(legacyDirWin, "state-old.json");
+    ageFile(agedLegacy, 20);
+    const freshLegacy = writeStateFile(legacyDirWin, "state-fresh.json");
+    ageFile(freshLegacy, 1);
+
+    const r = runGc(dirs);
+
+    expect(r.code).toBe(0);
+    expect(existsSync(agedCurrent)).toBe(false); // current-key dir cleaned
+    expect(existsSync(agedLegacy)).toBe(false); // legacy-key dir ALSO cleaned (the fix)
+    expect(existsSync(freshLegacy)).toBe(true); // fresh survives even in the legacy dir
   });
 });

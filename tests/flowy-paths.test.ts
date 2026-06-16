@@ -91,4 +91,16 @@ d("flowy-paths.sh — canonical state dir", () => {
     expect(stateDir("", PLUGIN_ROOT).out).toBe(""); // empty project dir
     expect(stateDir("E:\\proj", "").out).toBe(""); // empty plugin root
   });
+
+  test("flowy_state_root returns <claude-home>/flowy-state (parent of all project dirs)", () => {
+    function root(src: string): string {
+      const res = spawnSync(GIT_BASH!, ["-c", '. "$1"; flowy_state_root "$2"', "_", HELPER, src], {
+        encoding: "utf8",
+      });
+      return (res.stdout ?? "").trim();
+    }
+    expect(root(PLUGIN_ROOT)).toBe(HOME_PREFIX); // strips /plugins/... -> /c/Users/U/.claude/flowy-state
+    expect(root("/c/Users/U/.claude")).toBe(HOME_PREFIX); // accepts the claude-home directly
+    expect(root("/c/Users/U/not-a-home")).toBe(""); // no-op on a non-.claude home
+  });
 });

@@ -76,14 +76,12 @@ flowy_canonical_key() {
   printf '%s' "$_p" | tr -c 'A-Za-z0-9' '_'
 }
 
-# --- Full state dir ----------------------------------------------------------
-# $1 = CLAUDE_PROJECT_DIR (any form).
-# $2 = CLAUDE_PLUGIN_ROOT (carrying /plugins/) OR a claude-home ending /.claude.
-# Echoes STATE_DIR on success; echoes nothing and returns 1 on any no-op.
-flowy_state_dir() {
-  _pd="$1"
-  _src="$2"
-  [ -n "$_pd" ] || return 1
+# --- State ROOT (parent of every per-project dir) ----------------------------
+# $1 = CLAUDE_PLUGIN_ROOT (carrying /plugins/) OR a claude-home ending /.claude.
+# Echoes <claude-home>/flowy-state on success; nothing(+1) on no-op. The GC
+# uses this to sweep ALL project dirs (it needs no project key).
+flowy_state_root() {
+  _src="$1"
   [ -n "$_src" ] || return 1
 
   # Normalize separators so a Windows-form plugin root (C:\...\plugins\...) is
@@ -106,8 +104,19 @@ flowy_state_dir() {
     *) return 1 ;;
   esac
 
+  printf '%s' "$_home/flowy-state"
+}
+
+# --- Full state dir ----------------------------------------------------------
+# $1 = CLAUDE_PROJECT_DIR (any form).
+# $2 = CLAUDE_PLUGIN_ROOT (carrying /plugins/) OR a claude-home ending /.claude.
+# Echoes STATE_DIR on success; echoes nothing and returns 1 on any no-op.
+flowy_state_dir() {
+  _pd="$1"
+  [ -n "$_pd" ] || return 1
+  _root="$(flowy_state_root "$2")" || return 1
+  [ -n "$_root" ] || return 1
   _key="$(flowy_canonical_key "$_pd")" || return 1
   [ -n "$_key" ] || return 1
-
-  printf '%s' "$_home/flowy-state/$_key"
+  printf '%s' "$_root/$_key"
 }

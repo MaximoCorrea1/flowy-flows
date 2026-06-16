@@ -50,33 +50,22 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 [ -n "$PLUGIN_ROOT" ] || exit 0
 
 # ---------------------------------------------------------------------------
-# 2. Derive CLAUDE_HOME / PROJECT_KEY / STATE_DIR — EXACTLY as §2b of
-#    flowy-inject.sh (same %/plugins/* strip, same */.claude guard, same tr).
+# 2. Derive the state ROOT (<claude-home>/flowy-state) via the SHARED helper.
+#    The GC sweeps EVERY per-project dir under it (not a single key), so it
+#    (a) needs NO project-key derivation -> zero drift vs the hook/activator,
+#    and (b) self-heals legacy state dirs left under any pre-canonicalization
+#    key form (Bug E orphans). Empty output -> no-op (fail-loud, never block).
+#    A missing/unsourceable helper also no-ops.
 # ---------------------------------------------------------------------------
-CLAUDE_HOME="${PLUGIN_ROOT%/plugins/*}"
-# No /plugins/ found → expansion is a no-op (equals PLUGIN_ROOT) → exit.
-[ "$CLAUDE_HOME" != "$PLUGIN_ROOT" ] || exit 0
-# Must resolve to a .claude home; reject any other directory shape.
-case "$CLAUDE_HOME" in
-  */.claude ) : ;;   # ok
-  * ) exit 0 ;;      # not a .claude home → no-op
-esac
-
-# Deterministic project key: every non-[A-Za-z0-9] char → '_'.
-PROJECT_KEY="$(printf '%s' "$PROJECT_DIR" | tr -c 'A-Za-z0-9' '_')"
-[ -n "$PROJECT_KEY" ] || exit 0
-
-STATE_DIR="$CLAUDE_HOME/flowy-state/$PROJECT_KEY"
+. "$(dirname "$0")/flowy-paths.sh" 2>/dev/null || exit 0
+STATE_ROOT="$(flowy_state_root "$PLUGIN_ROOT")"
+[ -n "$STATE_ROOT" ] || exit 0
 
 # ---------------------------------------------------------------------------
-# 3. Guard: STATE_DIR must exist as a real directory (not a symlink).
+# 3. Guard: the state ROOT must exist as a real directory (not a symlink).
 # ---------------------------------------------------------------------------
-# Missing → no-op (nothing to clean).
-[ -d "$STATE_DIR" ] || exit 0
-# Symlinked dir → never follow it (a planted link could redirect GC to an
-# arbitrary directory). `[ -L ]` is true even when the link target is a dir,
-# so check this AFTER the `-d` test.
-[ ! -L "$STATE_DIR" ] || exit 0
+[ -d "$STATE_ROOT" ] || exit 0      # absent -> nothing to clean
+[ ! -L "$STATE_ROOT" ] || exit 0    # symlinked root -> never follow it
 
 # ---------------------------------------------------------------------------
 # 4. Load timing constants. If sourcing fails, fall back to hardcoded default.
@@ -86,22 +75,25 @@ FLOWY_STATE_GC_DAYS=14
 . "$(dirname "$0")/flowy-constants.sh" 2>/dev/null || FLOWY_STATE_GC_DAYS=14
 
 # ---------------------------------------------------------------------------
-# 5. Garbage-collect state-*.json files older than FLOWY_STATE_GC_DAYS days.
-#    For each matching file:
-#      - [ -e ] guards against globs with no matches or races.
-#      - [ ! -L ] skips symlinks — never delete a link or its target.
-#      - `find "$f" -mtime +N` returns non-empty if the file is older than N
-#        days; if so, rm -f it.
+# 5. Sweep EVERY per-project dir under the state root, GC'ing state-*.json
+#    older than FLOWY_STATE_GC_DAYS. Sweeping all dirs (not one key) makes the
+#    GC key-agnostic (no drift) and self-heals legacy/divergent-key orphans.
+#      - skip a symlinked project dir (never follow a planted link).
+#      - per file: [ -e ] guards empty globs; [ ! -L ] skips symlinks;
+#        `find -mtime +N` matches files MORE than N days old.
 # ---------------------------------------------------------------------------
-for f in "$STATE_DIR"/state-*.json; do
-  # Guard against empty glob expansion (no files match → f is the literal pattern).
-  [ -e "$f" ] || continue
-  # Skip symlinks — never delete a symlink target.
-  [ ! -L "$f" ] || continue
-  # find -mtime +N: matches files whose mtime is MORE than N days old.
-  if [ -n "$(find "$f" -mtime +"$FLOWY_STATE_GC_DAYS" 2>/dev/null)" ]; then
-    rm -f "$f" 2>/dev/null || true
-  fi
+for _dir in "$STATE_ROOT"/*/; do
+  # Empty glob -> the literal pattern; `[ -d ]` rejects it.
+  [ -d "$_dir" ] || continue
+  # Skip a symlinked project-state dir (strip trailing slash for the -L test).
+  [ ! -L "${_dir%/}" ] || continue
+  for f in "$_dir"state-*.json; do
+    [ -e "$f" ] || continue
+    [ ! -L "$f" ] || continue
+    if [ -n "$(find "$f" -mtime +"$FLOWY_STATE_GC_DAYS" 2>/dev/null)" ]; then
+      rm -f "$f" 2>/dev/null || true
+    fi
+  done
 done
 
 # Trap guarantees exit 0; be explicit anyway.
