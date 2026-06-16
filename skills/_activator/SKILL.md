@@ -23,17 +23,23 @@ Your job as the activator is to **write the state file the hook reads**. The con
 
 **State files do NOT live in the project repo.** A repo that ships a committed `$CLAUDE_PROJECT_DIR/.flowy/state-*.json` is a security threat (it could force attacker routing on anyone who clones it), so the hook IGNORES any in-repo state and reads ONLY an out-of-repo state dir. You MUST write to that same out-of-repo dir or the hook will never see your state.
 
-**Compute the out-of-repo state dir deterministically — the hook computes the byte-identical path, so you must match it exactly:**
+**Compute the state dir by INVOKING the shared helper — do NOT compute the key by hand.** The hook, the GC, and you all derive the dir from ONE script (`hooks/flowy-paths.sh`), so you cannot disagree on it. Hand-computing the key in prose is exactly the bug that made the banner silently vanish: a Windows `E:\` path and a Git-Bash `/e/` path of the SAME project produced different keys, so the hook read a dir you never wrote. Run this once via the Bash tool:
 
-1. **`<claude-home>`** = `CLAUDE_PLUGIN_ROOT` truncated immediately BEFORE the LAST `/plugins/` segment. Real plugin roots look like `<claude-home>/plugins/cache/flowy-flows/flowy/<version>`, so dropping `/plugins/...` yields `<claude-home>`, which ends in `/.claude`. Example: `CLAUDE_PLUGIN_ROOT = ~/.claude/plugins/cache/flowy-flows/flowy/0.4.2` → `<claude-home> = ~/.claude`. If `CLAUDE_PLUGIN_ROOT` has no `/plugins/` segment, or `<claude-home>` does not end in `/.claude`, the hook no-ops — do not try to work around this; report the unexpected layout instead.
-2. **`<project-key>`** = the `CLAUDE_PROJECT_DIR` string with EVERY character that is NOT `[A-Za-z0-9]` replaced by a single `_`. This is a deterministic per-character string transform (the hook computes it with `tr -c 'A-Za-z0-9' '_'`). Apply it to the literal `CLAUDE_PROJECT_DIR` value verbatim — e.g. `/c/Users/U/My Repo` → `_c_Users_U_My_Repo`. Do not normalize, trim, or collapse runs; one input char → one `_`.
-3. **State dir** = `<claude-home>/flowy-state/<project-key>/`. Create it (`mkdir -p`) if missing, then write `state-PENDING.json` there.
+```
+sh -c '. "$1/hooks/flowy-paths.sh"; flowy_state_dir "${CLAUDE_PROJECT_DIR:-$2}" "$1"' _ "<plugin-root>" "<project-dir>"
+```
 
-Throughout this skill, wherever a step says `.flowy/state-*.json`, it means a file in THIS out-of-repo dir: `<claude-home>/flowy-state/<project-key>/state-*.json`. NEVER write a state file under `$CLAUDE_PROJECT_DIR/.flowy/` — the hook will not read it, and a committed one is the exact threat we relocated state to avoid.
+- `<plugin-root>` = your wrapper's "Base directory for this skill" with the trailing `skills/<flow-name>` removed. Example: base `~/.claude/plugins/cache/flowy-flows/flowy/0.6.2/skills/superpowers-flow` → plugin-root `~/.claude/plugins/cache/flowy-flows/flowy/0.6.2`.
+- `<project-dir>` = the project root path (the working directory Claude Code shows you). The command prefers the live `$CLAUDE_PROJECT_DIR` when the Bash env exposes it and falls back to the literal you pass; the helper **canonicalizes either form to the same key**, so you do not need to match any particular path style — that canonicalization is what guarantees you and the hook agree.
+- Capture the single line it prints — that absolute path is your **STATE_DIR** for the rest of this skill. If it prints NOTHING, the plugin layout is unexpected (no `/.claude` home); report that and stop — do NOT guess a path.
+
+Then `mkdir -p "<STATE_DIR>"` if missing and write `state-PENDING.json` there.
+
+Throughout this skill, wherever a step names the state dir or `state-*.json`, it means a file in THIS helper-computed **STATE_DIR**. NEVER write a state file under `$CLAUDE_PROJECT_DIR/.flowy/` — the hook will not read it, and a committed one is the exact threat we relocated state to avoid.
 
 ## The state file contract — schema `flowy-state-v1`
 
-- **Location:** `<claude-home>/flowy-state/<project-key>/state-PENDING.json` (you always write PENDING; the hook claims it). See the derivation above.
+- **Location:** `<STATE_DIR>/state-PENDING.json` (you always write PENDING; the hook claims it). See the derivation above.
 - **Shape:**
 
 ```json
@@ -136,11 +142,11 @@ Keep the index as names only (paths are resolved on demand); keep it internal an
 
 ### Step 4: Write the PENDING state file
 
-Write the state to **`<claude-home>/flowy-state/<project-key>/state-PENDING.json`** (the OUT-OF-REPO state dir — derive `<claude-home>` and `<project-key>` exactly as in the "Where state lives" section above) using the EXACT `flowy-state-v1` shape from the contract above, with `sessionId: "PENDING"`, a `flowRef` of `flows/<flow-name>/FLOW.md`, and the `location` you recorded in Step 1 (`"plugin"` or `"project"`).
+Write the state to **`<STATE_DIR>/state-PENDING.json`** (the helper-computed OUT-OF-REPO state dir from the "Where state lives" section above — run `flowy-paths.sh` to get `<STATE_DIR>` if you have not already this turn) using the EXACT `flowy-state-v1` shape from the contract above, with `sessionId: "PENDING"`, a `flowRef` of `flows/<flow-name>/FLOW.md`, and the `location` you recorded in Step 1 (`"plugin"` or `"project"`).
 
-**Ensure the out-of-repo state dir exists** (`mkdir -p <claude-home>/flowy-state/<project-key>/`) before writing. Do NOT write under `$CLAUDE_PROJECT_DIR/.flowy/` — the hook ignores in-repo state.
+**Ensure the out-of-repo state dir exists** (`mkdir -p "<STATE_DIR>"`) before writing. Do NOT write under `$CLAUDE_PROJECT_DIR/.flowy/` — the hook ignores in-repo state.
 
-**Step 4.0 — Reconcile stale cross-session state FIRST.** The hook never garbage-collects claimed `state-<session_id>.json` files, so `<claude-home>/flowy-state/<project-key>/` accumulates files from PRIOR sessions. Those files are NOT a reliable signal of what is active in *your* session — globbing them and treating a name match as "already active" is exactly the false-block bug this step exists to prevent. Your ONE authoritative signal for THIS session is the hook's `⚑ Flowy routing ACTIVE` / `Active Flows:` banner injected into your context this turn:
+**Step 4.0 — Reconcile stale cross-session state FIRST.** The hook never garbage-collects claimed `state-<session_id>.json` files, so `<STATE_DIR>/` accumulates files from PRIOR sessions. Those files are NOT a reliable signal of what is active in *your* session — globbing them and treating a name match as "already active" is exactly the false-block bug this step exists to prevent. Your ONE authoritative signal for THIS session is the hook's `⚑ Flowy routing ACTIVE` / `Active Flows:` banner injected into your context this turn:
 
 - **No `Active Flows:` banner this turn** → no Flow is active in this session. Every `state-*.json` in the dir (`state-PENDING.json` + any `state-<id>.json`) is therefore stale from other sessions. **Delete them all**, then proceed as the **Single-flow case** below (clean slate). Do NOT read their contents and do NOT treat any of them as "already active."
 - **`Active Flows:` banner present** → its list IS the active set for this session. Use that list (not file contents) for the Stacking-case dedup below, and **delete any `state-<id>.json` whose `activeFlows` do not match the banner list** — those belong to other sessions.
@@ -173,16 +179,16 @@ After this step the dir contains only state for the current session (or nothing)
    Then stop — do NOT add a duplicate.
 3. Otherwise, build the new merged `activeFlows` as the union of the existing entries (the banner's flows, with their `flowRef`/`location` from the surviving claimed file, deduped by name) PLUS your new `{ "name": "<flow-name>", "flowRef": "flows/<flow-name>/FLOW.md", "location": "<plugin|project>" }` (your entry appended last, preserving lockstep `name`-then-`flowRef`-then-`location` order in each object).
 
-**Where to write the merged result — you MUST write BOTH (this is a hard requirement, not advice). Every path below is in the OUT-OF-REPO dir `<claude-home>/flowy-state/<project-key>/`:**
+**Where to write the merged result — you MUST write BOTH (this is a hard requirement, not advice). Every path below is in the OUT-OF-REPO dir `<STATE_DIR>/`:**
 
-1. **MUST** write the merged `activeFlows` to `<claude-home>/flowy-state/<project-key>/state-PENDING.json` (with `sessionId: "PENDING"` AND a fresh `createdAtEpoch` from `date +%s` — see the contract above; an un-stamped PENDING is deleted by the hook as stale). This is the superset a fresh hook turn picks up; it guarantees the full set survives even if the claimed file is later replaced.
+1. **MUST** write the merged `activeFlows` to `<STATE_DIR>/state-PENDING.json` (with `sessionId: "PENDING"` AND a fresh `createdAtEpoch` from `date +%s` — see the contract above; an un-stamped PENDING is deleted by the hook as stale). This is the superset a fresh hook turn picks up; it guarantees the full set survives even if the claimed file is later replaced.
 2. **MUST**, when this session already has a claimed `state-<session_id>.json` (the one identified in step 1 — present whenever the `Active Flows:` banner fired this turn), ALSO immediately write the SAME merged `activeFlows` into that claimed file. Do this on THIS turn — do not defer it to the next hook turn.
 
 **Why both are mandatory:** the hook reads `state-<session_id>.json` when it exists (it only claims PENDING when no claimed file is present). If you update only `state-PENDING.json`, the hook keeps reading the already-claimed `state-<session_id>.json` and the newly stacked Flow's routing is INVISIBLE until the next turn (a one-turn enforcement gap). Writing the merged set into the claimed file makes the new Flow enforce on THIS very turn. Writing it into PENDING too keeps a correct superset for any future claim. Skipping step 2 is the bug this rule exists to prevent — treat it as non-negotiable.
 
 In each claimed `state-<session_id>.json` you may leave its existing `sessionId` value; only `activeFlows` must become the merged set. Always keep `sessionId: "PENDING"` in the PENDING file.
 
-Never write a file that drops a previously-active Flow. If you are ever unsure which files exist, glob `<claude-home>/flowy-state/<project-key>/state-*.json`, write the merged superset into PENDING, and write the same merged set into every claimed (non-PENDING) match.
+Never write a file that drops a previously-active Flow. If you are ever unsure which files exist, glob `<STATE_DIR>/state-*.json`, write the merged superset into PENDING, and write the same merged set into every claimed (non-PENDING) match.
 
 ### Step 5: Print confirmation (ONE line)
 
@@ -200,7 +206,7 @@ The state file no longer tracks a `bootstrapFired` flag (it carries only `name` 
 
 ### Step 6b: Hook self-check (silent on success)
 
-Verify `<claude-home>/flowy-state/<project-key>/state-PENDING.json` (or a claimed `state-<session_id>.json`) exists with your `activeFlows`. On success, print NOTHING extra; the Step 5 line already told the user it is active.
+Verify `<STATE_DIR>/state-PENDING.json` (or a claimed `state-<session_id>.json`) exists with your `activeFlows`. On success, print NOTHING extra; the Step 5 line already told the user it is active.
 
 Only if the state file is missing or unwritable, print the failure guidance:
 > ⚠ Couldn't write Flowy state at `<path>`. Routing will not enforce. Restart Claude Code (plugin hooks register at session start), then re-run `/flowy:<flow-name>`.
@@ -211,7 +217,7 @@ The "banner didn't fire, restart" troubleshooting now lives in the `status` comm
 
 From this point forward, before EVERY turn for the rest of this session you MUST:
 
-1. Treat the hook's `⚑ Flowy routing ACTIVE` banner (and the active-Flow list it names) as your routing trigger. If you need the active set directly, read `<claude-home>/flowy-state/<project-key>/state-<session_id>.json` (or `state-PENDING.json` in that dir before it's claimed) — the active Flows are its `activeFlows` entries.
+1. Treat the hook's `⚑ Flowy routing ACTIVE` banner (and the active-Flow list it names) as your routing trigger. If you need the active set directly, read `<STATE_DIR>/state-<session_id>.json` (or `state-PENDING.json` in that dir before it's claimed) — the active Flows are its `activeFlows` entries.
 2. For each active Flow, resolve its FLOW.md by `location`: for `location: "plugin"` (or absent) resolve `<plugin-root>/<flowRef>`; for `location: "project"` resolve `$CLAUDE_PROJECT_DIR/.flowy/flows/<name>/FLOW.md`. Then evaluate its routing decision tree against the current user message.
 3. State the routing decision out loud: `Routing [<flow-name>]: <skill-name> — <reason>` or `Routing [<flow-name>]: none — <reason>`.
 4. If a skill should fire, resolve and read its SKILL.md (from the Flow's `skills/` or `modules/` directory per the FLOW.md), then follow it completely.
@@ -227,10 +233,10 @@ After context compaction, re-read each active Flow's FLOW.md (resolve by `locati
 
 **Invocation path.** Deactivation is invoked through a flow wrapper that forwards the `deactivate` argument to this activator — e.g. `flowy:superpowers-flow deactivate` (or `flowy:superpowers-flow deactivate <flow-name>`). The user-facing form is `/flowy deactivate <flow-name>`; whichever wrapper routes here, the argument arrives as `deactivate <flow-name>` or a bare `deactivate`, parsed by the "Parse the argument" section above. There is no separate deactivate command — it is this same `_activator` with a `deactivate` argument.
 
-Deactivation edits the current state file(s) under the OUT-OF-REPO state dir `<claude-home>/flowy-state/<project-key>/` (derive `<claude-home>` + `<project-key>` per the "Where state lives" section). You do NOT know the session_id, so glob `<claude-home>/flowy-state/<project-key>/state-*.json` to find every state file. The hook may have claimed PENDING into a `state-<session_id>.json`, so you MUST handle BOTH file types: `state-PENDING.json` AND any claimed `state-<id>.json`. **Cleaning only one type is a bug:** a stale `state-PENDING.json` that still names the deactivated Flow will be claimed by a future hook turn (or read by a future activation as "already active"), silently re-activating what the user just deactivated. (Do NOT look under `$CLAUDE_PROJECT_DIR/.flowy/` for state — the hook never reads it.)
+Deactivation edits the current state file(s) under the helper-computed OUT-OF-REPO state dir `<STATE_DIR>` (run `flowy-paths.sh` to get it, exactly as in the "Where state lives" section). You do NOT know the session_id, so glob `<STATE_DIR>/state-*.json` to find every state file. The hook may have claimed PENDING into a `state-<session_id>.json`, so you MUST handle BOTH file types: `state-PENDING.json` AND any claimed `state-<id>.json`. **Cleaning only one type is a bug:** a stale `state-PENDING.json` that still names the deactivated Flow will be claimed by a future hook turn (or read by a future activation as "already active"), silently re-activating what the user just deactivated. (Do NOT look under `$CLAUDE_PROJECT_DIR/.flowy/` for state — the hook never reads it.)
 
 ### If `deactivate <flow-name>`:
-1. Glob `<claude-home>/flowy-state/<project-key>/state-*.json` to enumerate ALL state files (both `state-PENDING.json` and any `state-<id>.json`). For EACH one, read it and remove the `activeFlows` entry where `name == <flow-name>`.
+1. Glob `<STATE_DIR>/state-*.json` to enumerate ALL state files (both `state-PENDING.json` and any `state-<id>.json`). For EACH one, read it and remove the `activeFlows` entry where `name == <flow-name>`.
 2. For each file, after removal:
    - If `activeFlows` is still non-empty, write the updated `activeFlows` back to that file (preserving its `sessionId`).
    - If `activeFlows` becomes empty:
@@ -240,7 +246,7 @@ Deactivation edits the current state file(s) under the OUT-OF-REPO state dir `<c
 4. Print: `Flow deactivated: <flow-name>`
 
 ### If `deactivate` (no argument):
-1. Glob `<claude-home>/flowy-state/<project-key>/state-*.json`. For EVERY match — including `state-PENDING.json` — either delete it or set `"activeFlows": []`. Prefer deleting `state-PENDING.json` and writing `"activeFlows": []` to any claimed `state-<id>.json`. Leave no file naming any Flow.
+1. Glob `<STATE_DIR>/state-*.json`. For EVERY match — including `state-PENDING.json` — either delete it or set `"activeFlows": []`. Prefer deleting `state-PENDING.json` and writing `"activeFlows": []` to any claimed `state-<id>.json`. Leave no file naming any Flow.
 2. Print: `All Flows deactivated. Routing obligations cleared.`
 
 ---
@@ -251,7 +257,7 @@ Deactivation edits the current state file(s) under the OUT-OF-REPO state dir `<c
 
 ### Step A — enumerate state files
 
-Glob `<claude-home>/flowy-state/<project-key>/state-*.json` (the OUT-OF-REPO state dir — derive `<claude-home>` + `<project-key>` per the "Where state lives" section; do NOT look under `$CLAUDE_PROJECT_DIR/.flowy/`). Classify each match:
+Glob `<STATE_DIR>/state-*.json` (the helper-computed OUT-OF-REPO state dir — run `flowy-paths.sh` to get `<STATE_DIR>` per the "Where state lives" section; do NOT look under `$CLAUDE_PROJECT_DIR/.flowy/`). Classify each match:
 - `state-PENDING.json` — written by the activator, NOT yet claimed by the hook.
 - any other `state-*.json` (i.e. `state-<session_id>.json`) — a file the hook CLAIMED by atomically renaming PENDING → `state-<session_id>.json` under its mkdir-lock. **The existence of a claimed `state-<session_id>.json` is the proof the hook ran**: the activator only ever writes `state-PENDING.json`, so the only thing that can produce a `state-<session_id>.json` is the hook's claim step. If one exists, the hook fired at least once this session.
 
