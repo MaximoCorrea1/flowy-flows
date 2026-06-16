@@ -95,6 +95,10 @@ function toPosix(winPath: string): string {
   return winPath.replace(/^([A-Za-z]):/, (_m, d) => `/${d.toLowerCase()}`).replace(/\\/g, "/");
 }
 
+// The shared key-derivation helper (single source of truth). The oracle below
+// shells out to it so the test can never encode a parallel/stale transform.
+const HELPER = toPosix(join(HERE, "..", "hooks", "flowy-paths.sh"));
+
 /**
  * Mirror the hook's PROJECT_KEY transform EXACTLY: every char outside
  * [A-Za-z0-9] becomes '_'. The hook computes this with `tr -c 'A-Za-z0-9' '_'`
@@ -103,7 +107,16 @@ function toPosix(winPath: string): string {
  * byte-identical to what the hook builds.
  */
 function projectKey(projectDirEnvValue: string): string {
-  return projectDirEnvValue.replace(/[^A-Za-z0-9]/g, "_");
+  // SINGLE SOURCE OF TRUTH: shell out to flowy-paths.sh's flowy_canonical_key so
+  // this oracle is byte-identical to what the hook/GC/activator compute. (A
+  // regex mirror here is exactly the drift the shared helper exists to kill.)
+  if (!GIT_BASH) return projectDirEnvValue.replace(/[^A-Za-z0-9]/g, "_");
+  const res = spawnSync(
+    GIT_BASH,
+    ["-c", '. "$1"; flowy_canonical_key "$2"', "_", HELPER, projectDirEnvValue],
+    { encoding: "utf8" },
+  );
+  return (res.stdout ?? "").trim();
 }
 
 interface Dirs {
@@ -323,6 +336,53 @@ test(
     }
   },
 );
+
+// ---------------------------------------------------------------------------
+// BUG E REGRESSION — the canonical state key must resolve identically whether
+// CLAUDE_PROJECT_DIR arrives in Windows backslash form (production) or Git-Bash
+// MSYS form. Pre-fix, the hook (Windows form -> E__) and the activator (MSYS
+// form -> _e_) wrote/read different dirs and the banner silently vanished.
+// ---------------------------------------------------------------------------
+describe("Bug E: CLAUDE_PROJECT_DIR path-form independence", () => {
+  test("the hook fires when CLAUDE_PROJECT_DIR is the WINDOWS backslash form (production shape)", () => {
+    if (!HAVE_GIT_BASH) return;
+    const dirs = makeDirs();
+    writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
+    writeState(dirs, "winform", {
+      schema: "flowy-state-v1",
+      sessionId: "winform",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md", location: "plugin" },
+      ],
+    });
+    // Production shape: Windows backslash CLAUDE_PROJECT_DIR + POSIX plugin root.
+    const res = runHook({
+      projectDir: dirs.projectDirWin,
+      pluginRoot: dirs.pluginRootEnv,
+      stdin: stdinFor("winform"),
+    });
+    expect(res.code).toBe(0);
+    expect(res.stdout).toContain("Flowy routing ACTIVE");
+    expect(res.stdout).toContain("superpowers-flow");
+  });
+
+  test("Windows-form and MSYS-form CLAUDE_PROJECT_DIR resolve the SAME state file", () => {
+    if (!HAVE_GIT_BASH) return;
+    const dirs = makeDirs();
+    writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
+    writeState(dirs, "bothforms", {
+      schema: "flowy-state-v1",
+      sessionId: "bothforms",
+      activeFlows: [
+        { name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md", location: "plugin" },
+      ],
+    });
+    const win = runHook({ projectDir: dirs.projectDirWin, pluginRoot: dirs.pluginRootEnv, stdin: stdinFor("bothforms") });
+    const msys = runHook({ projectDir: dirs.projectDirEnv, pluginRoot: dirs.pluginRootEnv, stdin: stdinFor("bothforms") });
+    expect(win.stdout).toContain("Flowy routing ACTIVE");
+    expect(msys.stdout).toContain("Flowy routing ACTIVE");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // DERIVATION CORRECTNESS — pure-string check of `${PLUGIN_ROOT%/plugins/*}`

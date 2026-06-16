@@ -187,35 +187,21 @@ is_safe_id "$SESSION_ID" || exit 0
 # From here, SESSION_ID is path-safe.
 
 # ---------------------------------------------------------------------------
-# 2b. Derive the OUT-OF-REPO state dir (RR2 security fix). State must NEVER be
-#     read from inside the project repo: a cloned repo could ship a committed
-#     $PROJECT_DIR/.flowy/state-PENDING.json + .flowy/flows/evil/FLOW.md and the
-#     hook would otherwise claim it and inject attacker routing. So we anchor
-#     state under the user's Claude home (<...>/.claude/flowy-state/<project-key>),
-#     derived from CLAUDE_PLUGIN_ROOT. NO in-repo fallback (a fallback reopens
-#     the hole). If we cannot derive a safe home → no-op (fail-loud, never block).
-#
-#     CLAUDE_HOME = $PLUGIN_ROOT up to (and excluding) the LAST /plugins/ segment.
-#     Real plugin roots look like .../.claude/plugins/cache/<repo>/<ns>/<ver>, so
-#     stripping /plugins/* yields .../.claude. We then HARD-REQUIRE that the
-#     result ends in /.claude — anything else is an unexpected layout → no-op.
-#     case statements only (no bashisms).
+# 2b. Derive the OUT-OF-REPO state dir (RR2 security fix) via the SHARED helper.
+#     State must NEVER be read from inside the project repo (a cloned repo could
+#     ship a committed $PROJECT_DIR/.flowy/state-*.json + flows/evil/FLOW.md and
+#     the hook would otherwise claim it). flowy-paths.sh anchors state under the
+#     user's Claude home (<...>/.claude/flowy-state/<project-key>) derived from
+#     CLAUDE_PLUGIN_ROOT, HARD-REQUIRES a /.claude home, and computes a CANONICAL
+#     project-key so the hook, GC, and activator agree byte-for-byte regardless
+#     of CLAUDE_PROJECT_DIR path form (Windows E:\ vs Git-Bash /e/ — Bug E). It is
+#     the SINGLE source of truth; empty output = a no-op condition (no /plugins/,
+#     not a .claude home, empty key) → exit 0 (fail-loud, never block). A
+#     missing/unsourceable helper also no-ops.
 # ---------------------------------------------------------------------------
-CLAUDE_HOME="${PLUGIN_ROOT%/plugins/*}"
-# No /plugins/ found → the expansion is a no-op and equals PLUGIN_ROOT → no-op.
-[ "$CLAUDE_HOME" != "$PLUGIN_ROOT" ] || exit 0
-# Must resolve to a .claude home; reject any other directory shape.
-case "$CLAUDE_HOME" in
-  */.claude ) : ;;          # ok
-  * ) exit 0 ;;             # not a .claude home → no-op
-esac
-
-# Deterministic project key: every non-[A-Za-z0-9] char → '_'. The activator
-# computes the byte-identical key, so both sides agree on the state dir.
-PROJECT_KEY="$(printf '%s' "$PROJECT_DIR" | tr -c 'A-Za-z0-9' '_')"
-[ -n "$PROJECT_KEY" ] || exit 0
-
-STATE_DIR="$CLAUDE_HOME/flowy-state/$PROJECT_KEY"
+. "$(dirname "$0")/flowy-paths.sh" 2>/dev/null || exit 0
+STATE_DIR="$(flowy_state_dir "$PROJECT_DIR" "$PLUGIN_ROOT")"
+[ -n "$STATE_DIR" ] || exit 0
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
 # (A) Source timing constants. Provides FLOWY_PENDING_TTL_SECONDS (default 120).
