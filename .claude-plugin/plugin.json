@@ -1,7 +1,7 @@
 {
   "name": "flowy",
   "description": "Curated library of goal-bound AI Flows. Each Flow bundles hand-picked skills with a FLOW.md routing document for mandatory enforcement.",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "author": {
     "name": "Maximo Correa",
     "email": "maximocorrearosas@gmail.com"
