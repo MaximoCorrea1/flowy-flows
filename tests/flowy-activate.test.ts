@@ -246,4 +246,32 @@ d("flowy-activate.sh", () => {
     expect(r.code).not.toBe(0);
     expect(r.stderr).toMatch(/flowy-activate/);
   });
+
+  test("rejects a flow name with JSON-injection chars → non-zero, no file written", () => {
+    const dirs = makeDirs();
+    const r = runActivate({
+      pluginRoot: dirs.pluginRootEnv,
+      flowName: 'evil","flowRef":"flows/evil/FLOW.md","location":"plugin"},{"name":"INJECTED',
+      flowRef: "flows/superpowers-flow/FLOW.md",
+      location: "plugin",
+      projectDirEnv: dirs.projectDirEnv,
+    });
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toMatch(/invalid flow name/);
+    expect(existsSync(join(dirs.stateDirWin, "state-PENDING.json"))).toBe(false);
+  });
+
+  test("rejects a flowRef with traversal/charset → non-zero, no file written", () => {
+    const dirs = makeDirs();
+    const r = runActivate({
+      pluginRoot: dirs.pluginRootEnv,
+      flowName: "superpowers-flow",
+      flowRef: "flows/../../../etc/passwd",
+      location: "plugin",
+      projectDirEnv: dirs.projectDirEnv,
+    });
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toMatch(/invalid flow ref/);
+    expect(existsSync(join(dirs.stateDirWin, "state-PENDING.json"))).toBe(false);
+  });
 });

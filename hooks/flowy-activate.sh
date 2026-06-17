@@ -17,8 +17,9 @@
 # key, so pwd's MSYS form resolves to the hook's Windows-form key.
 #
 # Output contract: success => exit 0, NOTHING on stdout. Failure => non-zero and
-# a one-line reason on stderr. Fail-loud, never a wrong key. Values are supplied
-# by the activator (clean slugs/paths) and re-sanitized by the hook on read.
+# a one-line reason on stderr. Fail-loud, never a wrong key. FLOW_NAME and
+# FLOW_REF are charset-validated below before being written into the JSON
+# (the hook's read-side strip only sanitizes display, not a structural breakout).
 # =============================================================================
 
 set -u 2>/dev/null || true
@@ -31,6 +32,15 @@ LOCATION="${4:-plugin}"
 [ -n "$PLUGIN_ROOT" ] || { printf 'flowy-activate: missing plugin root\n' >&2; exit 2; }
 [ -n "$FLOW_NAME" ]   || { printf 'flowy-activate: missing flow name\n' >&2; exit 2; }
 [ -n "$FLOW_REF" ]    || { printf 'flowy-activate: missing flow ref\n' >&2; exit 2; }
+# Charset-validate name + ref BEFORE interpolating them into the state JSON below:
+# a crafted name/ref could otherwise break out of the JSON string and inject a
+# second activeFlows entry that the hook's line-oriented parser would resolve.
+case "$FLOW_NAME" in
+  -* | *[!a-z0-9-]*) printf 'flowy-activate: invalid flow name: %s\n' "$FLOW_NAME" >&2; exit 2 ;;
+esac
+case "$FLOW_REF" in
+  *..* | *[!A-Za-z0-9_./-]*) printf 'flowy-activate: invalid flow ref: %s\n' "$FLOW_REF" >&2; exit 2 ;;
+esac
 case "$LOCATION" in plugin | project) : ;; *) LOCATION="plugin" ;; esac
 
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
