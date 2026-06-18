@@ -5,7 +5,7 @@ A curated **Flowy** Flow: hand-picked best-of-breed skills + a `FLOW.md` router 
 ## Install
 
 ```
-/flowy __SLUG__
+/flowy:__SLUG__
 ```
 
 ## What it routes
