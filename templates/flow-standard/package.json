@@ -1,0 +1,5 @@
+{
+  "name": "__SLUG__",
+  "private": true,
+  "scripts": { "test": "bun test" }
+}

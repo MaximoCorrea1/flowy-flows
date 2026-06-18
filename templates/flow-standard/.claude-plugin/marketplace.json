@@ -1,0 +1,7 @@
+{
+  "name": "__SLUG__",
+  "owner": "MaximoCorrea1",
+  "plugins": [
+    { "name": "__SLUG__", "source": "./", "description": "__TITLE__ curated Flow." }
+  ]
+}
