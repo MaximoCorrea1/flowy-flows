@@ -178,7 +178,7 @@ Phase EXIT gates must stay hard — a real, named artifact.
 
 ## Validate before submitting
 
-Paste your `FLOW.md` at https://flowy.dev/create-a-flow/validate.
+Paste your `FLOW.md` at https://flowy.sh/create-a-flow/validate.
 
 The validator checks:
 
@@ -197,10 +197,10 @@ The validator checks:
 
 Two paths, both go through the same review:
 
-- **In-app upload:** https://flowy.dev/me/flows/new (recommended for first-time creators)
+- **In-app upload:** https://flowy.sh/me/flows/new (recommended for first-time creators)
 - **GitHub PR:** open a PR to https://github.com/MaximoCorrea1/flowy-flows
 
-Approved Flows ship in the next plugin release and appear on https://flowy.dev/listings.
+Approved Flows ship in the next plugin release and appear on https://flowy.sh/listings.
 
 ---
 

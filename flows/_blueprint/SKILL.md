@@ -22,8 +22,8 @@ You build **two** things: your **skills** (`skills/*/SKILL.md`) and a **validate
 3. Rename the `skills/your-skill-here/` folder to your actual skill name
 4. Open `examples/wedding-photography-delivery/FLOW.md` and read it end-to-end, then edit `FLOW.md` — replace every `<<…>>` placeholder with your domain's phases, conditions, skills, and gates.
 5. Edit each skills/<name>/SKILL.md with your actual skill content
-6. Validate at https://flowy.dev/create-a-flow/validate
-7. Submit at https://flowy.dev/me/flows/new OR open a PR to flowy-flows
+6. Validate at https://flowy.sh/create-a-flow/validate
+7. Submit at https://flowy.sh/me/flows/new OR open a PR to flowy-flows
 
 ## What's required
 
