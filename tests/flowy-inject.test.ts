@@ -709,6 +709,33 @@ d("flowy-inject.sh", () => {
   });
 
   // -------------------------------------------------------------------------
+  // FORCED COMMITMENT (Increment 2) — the banner must demand a VISIBLE per-skill
+  // YES/NO + written reason BEFORE any other tool, not just "state routing".
+  // This is the lever (Spence forced-eval) that moves activation past the
+  // silently-satisfiable one-line nudge ("prints Routing:, never invokes").
+  // -------------------------------------------------------------------------
+  test("forced-commitment: banner demands a per-skill YES/NO+reason commitment before acting", () => {
+    const dirs = makeDirs();
+    writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
+    writeState(dirs, "A", {
+      schema: "flowy-state-v1",
+      sessionId: "A",
+      activeFlows: [{ name: "superpowers-flow", flowRef: "flows/superpowers-flow/FLOW.md" }],
+    });
+
+    const r = run(dirs, stdinFor("A"));
+
+    expect(r.code).toBe(0);
+    // Visible per-skill commitment with a written reason (the forced-eval lever).
+    expect(r.stdout).toMatch(/YES/);
+    expect(r.stdout).toMatch(/\bNO\b/);
+    expect(r.stdout).toMatch(/reason/i);
+    // Not silently satisfiable: reinforces invoke + a before-acting / non-compliant gate.
+    expect(r.stdout).toMatch(/invoke/i);
+    expect(r.stdout).toMatch(/before any other tool|non-compliant/i);
+  });
+
+  // -------------------------------------------------------------------------
   // NO-OP (the most important path: every normal repo with no Flow active)
   // -------------------------------------------------------------------------
   test("no state file at all → empty stdout, exit 0", () => {
