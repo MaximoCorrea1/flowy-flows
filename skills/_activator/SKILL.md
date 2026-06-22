@@ -158,7 +158,7 @@ Check the FLOW.md for a session-bootstrap step. For superpowers-flow, this is `u
 
 The script writes a fresh single-flow PENDING — correct for the common case (no Flow active yet). If the ⚑ banner THIS turn already lists active Flow(s) and you are ADDING another, the script alone will not take effect this turn: the hook will not re-claim PENDING while a claimed `state-<session_id>.json` exists. Handle stacking model-side instead:
 
-1. Get `<STATE_DIR>` from the `flowy-paths.sh` helper (see "Where state lives"). Read this session's claimed `state-<session_id>.json` for the existing `{name, flowRef, location}` entries (they match the banner's `Active Flows:` list).
+1. Get `<STATE_DIR>` from the `flowy-paths.sh` helper (see "Where state lives"). Read this session's claimed `state-<session_id>.json` for the existing `{name, flowRef, location}` entries (they match the flow names the ⚑ banner lists after `Flowy routing ACTIVE:`).
 2. **Dedup:** if `<flow-name>` is already active, print `Flow already active: <flow-name>. Use /flowy deactivate <flow-name> first to reset.` and stop.
 3. Otherwise build the merged `activeFlows` (existing entries + your new `{ "name": "<flow-name>", "flowRef": "flows/<flow-name>/FLOW.md", "location": "<plugin|project>" }`, your entry last) and write it into BOTH the claimed `state-<session_id>.json` (so it enforces THIS turn) AND a fresh `state-PENDING.json` (new `date +%s` `createdAtEpoch`). Never drop a previously-active Flow.
 

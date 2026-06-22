@@ -726,17 +726,17 @@ d("flowy-inject.sh", () => {
     const r = run(dirs, stdinFor("A"));
 
     expect(r.code).toBe(0);
-    // Visible per-skill commitment with a written reason (the forced-eval lever).
-    expect(r.stdout).toMatch(/YES/);
-    expect(r.stdout).toMatch(/\bNO\b/);
-    expect(r.stdout).toMatch(/reason/i);
+    // Lock the EXACT forced-commitment grammar, not a loose substring a free-text
+    // banner could satisfy: the per-skill YES/NO commit, each carrying a reason.
+    expect(r.stdout).toContain("YES,<reason>");
+    expect(r.stdout).toContain("NO,<reason>");
     // Not silently satisfiable: reinforces invoke + a before-acting / non-compliant gate.
     expect(r.stdout).toMatch(/invoke/i);
     expect(r.stdout).toMatch(/before any other tool|non-compliant/i);
-    // Terseness (founder: AS LITTLE verbosity as possible) — the live banner for a
-    // single active flow is at most 2 lines. Guards against regressing to a wall.
+    // Terseness (founder: AS LITTLE verbosity as possible) — a single active flow with
+    // no corrupt entries is EXACTLY one banner line. Guards against regressing to a wall.
     const liveLines = r.stdout.split("\n").filter((l) => l.trim() !== "");
-    expect(liveLines.length).toBeLessThanOrEqual(2);
+    expect(liveLines.length).toBe(1);
   });
 
   // -------------------------------------------------------------------------
@@ -952,6 +952,9 @@ d("flowy-inject.sh", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("superpowers-flow");
     expect(r.stdout).toContain("anthropic-toolkit");
+    // Verbosity guard: multiple flows are comma-joined into ONE banner line,
+    // not one line per flow (which would scale verbosity with catalog size).
+    expect(r.stdout.split("\n").filter((l) => l.trim() !== "").length).toBe(1);
   });
 
   // -------------------------------------------------------------------------

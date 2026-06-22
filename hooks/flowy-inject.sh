@@ -480,6 +480,10 @@ IFS="$OLD_IFS"
 #    appear. No active resolvable/corrupt flows → no output.
 # ---------------------------------------------------------------------------
 if [ -n "$LIVE_NAMES" ]; then
+  # ONE line, minimal verbosity (founder). This single line MUST carry the full
+  # forced-commitment contract: the phase, a per-skill YES/NO+reason commit, the
+  # invoke-each-YES gate, and the FLOW.md ref. Keep it one line (tests assert this);
+  # do not split or drop a clause. $LIVE_NAMES/$LIVE_REFS are already sanitized upstream.
   printf '%s\n' "⚑ Flowy routing ACTIVE: $LIVE_NAMES. Before any other tool: per the FLOW.md phase, commit each candidate skill ('Routing: <skill> = YES,<reason>' / 'NO,<reason>'), then invoke each YES. FLOW.md (re-read after compaction): $LIVE_REFS"
 fi
 
