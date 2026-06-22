@@ -8,6 +8,8 @@
 
 ## Routing
 
+**The rule:** when a trigger matches you INVOKE the named skill BEFORE doing the task yourself. Writing the code, patching the bug, or claiming "done" without first invoking is the failure this Flow exists to stop.
+
 ```
 USER MESSAGE
   ├─ session start / first message?          → invoke using-superpowers   (bootstrap once)
