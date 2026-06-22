@@ -480,12 +480,7 @@ IFS="$OLD_IFS"
 #    appear. No active resolvable/corrupt flows → no output.
 # ---------------------------------------------------------------------------
 if [ -n "$LIVE_NAMES" ]; then
-  printf '%s\n' "⚑ Flowy routing ACTIVE: $LIVE_NAMES. Before any other tool, in your reply you MUST commit, then invoke:"
-  printf '%s\n' "  - State the current phase from the FLOW.md tree (re-derive it for THIS task; an unrelated/new task resets the phase)."
-  printf '%s\n' "  - For each candidate skill of that phase, write one line: 'Routing: <skill> = YES, <reason>' or '<skill> = NO, <reason>'."
-  printf '%s\n' "  - INVOKE each YES via the Skill tool now (read its SKILL.md; do not inline from memory), THEN proceed. A YES with no reason, or acting without invoking, is non-compliant."
-  printf '%s\n' "Active Flows: $LIVE_NAMES"
-  printf '%s\n' "FLOW.md (re-read after any context compaction): $LIVE_REFS"
+  printf '%s\n' "⚑ Flowy routing ACTIVE: $LIVE_NAMES. Before any other tool: per the FLOW.md phase, commit each candidate skill ('Routing: <skill> = YES,<reason>' / 'NO,<reason>'), then invoke each YES. FLOW.md (re-read after compaction): $LIVE_REFS"
 fi
 
 if [ -n "$CORRUPT_NAMES" ]; then

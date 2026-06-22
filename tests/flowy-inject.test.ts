@@ -733,6 +733,10 @@ d("flowy-inject.sh", () => {
     // Not silently satisfiable: reinforces invoke + a before-acting / non-compliant gate.
     expect(r.stdout).toMatch(/invoke/i);
     expect(r.stdout).toMatch(/before any other tool|non-compliant/i);
+    // Terseness (founder: AS LITTLE verbosity as possible) — the live banner for a
+    // single active flow is at most 2 lines. Guards against regressing to a wall.
+    const liveLines = r.stdout.split("\n").filter((l) => l.trim() !== "");
+    expect(liveLines.length).toBeLessThanOrEqual(2);
   });
 
   // -------------------------------------------------------------------------

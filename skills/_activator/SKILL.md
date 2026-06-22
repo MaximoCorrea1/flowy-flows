@@ -146,7 +146,7 @@ The script derives the canonical OUT-OF-REPO state dir (the SAME `flowy-paths.sh
 
 Emit exactly one line, nothing else:
 
-`✓ <flow-name> active. Routing enforced from your next message. (run /flowy:<flow-name> status to verify)`
+`✓ <flow-name> active.`
 
 Do not print the skills list, the state path, scope, or any explanation on the happy path. If the user wants detail, that is what `status` is for.
 
