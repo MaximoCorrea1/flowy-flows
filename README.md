@@ -1,6 +1,6 @@
 # flowy-flows
 
-The hand-picked library of goal-bound **Flows** for [Flowy](https://flowy.dev), shipped as a Claude Code plugin.
+The hand-picked library of goal-bound **Flows** for [Flowy](https://flowy.sh), shipped as a Claude Code plugin.
 
 > **Most AI agents have skills. None of them have a plan. Flowy Flows give the plan.**
 
@@ -71,7 +71,7 @@ Building a Flow? You write **two** things — your **skills** and a **validated 
 
 ## Contributing
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) for the V1 submission paths (in-app upload at flowy.dev/me/flows/new OR GitHub PR to this repo).
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) for the V1 submission paths (in-app upload at flowy.sh/me/flows/new OR GitHub PR to this repo).
 
 ## Scaling
 

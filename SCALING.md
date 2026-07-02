@@ -54,13 +54,13 @@ github.com/CreatorY/rails-migration-flow
 cold-email-flow:activate
 ```
 
-Each creator owns their own plugin. flowy.dev catalogs them all and shows the install command per Flow.
+Each creator owns their own plugin. flowy.sh catalogs them all and shows the install command per Flow.
 
 ## Scale (thousands of Flows)
 
 The mechanism doesn't change. What changes:
 
-- **flowy.dev is the discovery surface** — browse, search, filter by category/creator/rating
+- **flowy.sh is the discovery surface** — browse, search, filter by category/creator/rating
 - **Each listing page shows the install command** — one-click copy
 - **Trust signals** — creator identity, review status, community ratings (V2 trust layer)
 - **Per-creator profiles** — bio, list of Flows, domain depth
@@ -82,7 +82,7 @@ The plugin system + per-creator git repos is the entire distribution architectur
 **Locked:**
 - V1 = one bundled plugin in this repo
 - Post-V1 = per-creator plugin repos
-- Discovery = flowy.dev
+- Discovery = flowy.sh
 - Quality gate = creator review + community signals
 
 **Still being figured out:**
@@ -99,7 +99,7 @@ If you publish a Flow that becomes popular enough to deserve its own plugin repo
 2. Rename the directory from `flows/<your-slug>/` to `flow/` (singular) to match the per-creator plugin convention shown above.
 3. Add `.claude-plugin/` to the new repo
 4. Move the wrapper from `skills/<your-slug>/` in this repo to `skills/activate/` in the new repo
-5. flowy.dev updates the install command on the listing page
+5. flowy.sh updates the install command on the listing page
 6. The old bundled version stays in `flowy-flows` until users migrate (or we deprecate after a notice period)
 
 No code changes needed — just file moves. The plugin system handles the rest.

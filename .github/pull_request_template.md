@@ -14,7 +14,7 @@
 - [ ] `SKILL.md` exists with the required frontmatter (name, description, version, license).
 - [ ] `FLOW.md` exists with `## Goal`, `## When to invoke`, `## Skills used`, `## Phases` sections.
 - [ ] My SKILL.md includes a license + copyright header comment.
-- [ ] I have read and accept the [contribution license terms](https://flowy.dev/terms).
+- [ ] I have read and accept the [contribution license terms](https://flowy.sh/terms).
 - [ ] My flow solves a goal-bound problem end-to-end (not a single trick or template).
 - [ ] My flow contains no illegal, hateful, or plagiarized content.
 - [ ] Examples / output transcripts included in `examples/` (optional but encouraged).
