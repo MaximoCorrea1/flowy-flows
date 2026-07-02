@@ -20,6 +20,8 @@ After launch, cycle phases 2-5 weekly.
 
 ## Routing (trigger to module)
 
+**The rule:** when a trigger matches, INVOKE the named module BEFORE doing the task yourself. Doing the work without first invoking is the failure this Flow exists to stop.
+
 ```
 USER MESSAGE
   ├─ "audit my landing page" / "why aren't people converting?"   → invoke conversion-ops       (Phase 1)

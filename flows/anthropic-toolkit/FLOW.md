@@ -8,6 +8,8 @@
 
 ## Routing
 
+**The rule:** when a trigger matches, INVOKE the named skill BEFORE doing the task yourself. Doing the work without first invoking is the failure this Flow exists to stop.
+
 ```
 USER DESCRIBES WHAT THEY WANT TO BUILD
   ├─ building something visual? DISAMBIGUATE first:

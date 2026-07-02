@@ -705,16 +705,16 @@ d("flowy-inject.sh", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toContain("Flowy routing ACTIVE");
     expect(r.stdout).toContain("superpowers-flow");
-    expect(r.stdout).toContain("Routing:");
+    expect(r.stdout).toMatch(/invoke the matching skill/i);
   });
 
   // -------------------------------------------------------------------------
-  // FORCED COMMITMENT (Increment 2) — the banner must demand a VISIBLE per-skill
-  // YES/NO + written reason BEFORE any other tool, not just "state routing".
-  // This is the lever (Spence forced-eval) that moves activation past the
-  // silently-satisfiable one-line nudge ("prints Routing:, never invokes").
+  // TERSE READ-ROUTE BANNER — forces the FLOW.md READ (the measured lever,
+  // 38%->100%) then INVOKE, before any other tool. The verbose per-skill YES/NO
+  // ritual is intentionally dropped (founder: minimal verbosity; terse+read ==
+  // verbose for adherence).
   // -------------------------------------------------------------------------
-  test("forced-commitment: banner demands a per-skill YES/NO+reason commitment before acting", () => {
+  test("terse banner: forces the FLOW.md read + invoke before acting, no YES/NO ritual", () => {
     const dirs = makeDirs();
     writeFlowMd(dirs, "flows/superpowers-flow/FLOW.md");
     writeState(dirs, "A", {
@@ -726,15 +726,17 @@ d("flowy-inject.sh", () => {
     const r = run(dirs, stdinFor("A"));
 
     expect(r.code).toBe(0);
-    // Lock the EXACT forced-commitment grammar, not a loose substring a free-text
-    // banner could satisfy: the per-skill YES/NO commit, each carrying a reason.
-    expect(r.stdout).toContain("YES,<reason>");
-    expect(r.stdout).toContain("NO,<reason>");
-    // Not silently satisfiable: reinforces invoke + a before-acting / non-compliant gate.
+    // The lever: explicitly force the full FLOW.md read.
+    expect(r.stdout.toLowerCase()).toMatch(/read the flow\.md in full/);
+    // Mandatory vocabulary (Seleznov lever): MUST + the negative "do not act first".
+    expect(r.stdout).toMatch(/you MUST/);
+    expect(r.stdout.toLowerCase()).toContain("do not write code, edit, or claim done first");
     expect(r.stdout).toMatch(/invoke/i);
-    expect(r.stdout).toMatch(/before any other tool|non-compliant/i);
-    // Terseness (founder: AS LITTLE verbosity as possible) — a single active flow with
-    // no corrupt entries is EXACTLY one banner line. Guards against regressing to a wall.
+    expect(r.stdout).toMatch(/before any other tool/i);
+    // Emoji-free + no YES/NO ritual.
+    expect(r.stdout).not.toContain("YES,<reason>");
+    expect(r.stdout).not.toContain("⚑");
+    // Terseness — a single active flow with no corrupt entries is EXACTLY one banner line.
     const liveLines = r.stdout.split("\n").filter((l) => l.trim() !== "");
     expect(liveLines.length).toBe(1);
   });

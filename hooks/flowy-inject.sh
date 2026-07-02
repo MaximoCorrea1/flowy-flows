@@ -480,11 +480,11 @@ IFS="$OLD_IFS"
 #    appear. No active resolvable/corrupt flows → no output.
 # ---------------------------------------------------------------------------
 if [ -n "$LIVE_NAMES" ]; then
-  # ONE line, minimal verbosity (founder). This single line MUST carry the full
-  # forced-commitment contract: the phase, a per-skill YES/NO+reason commit, the
-  # invoke-each-YES gate, and the FLOW.md ref. Keep it one line (tests assert this);
-  # do not split or drop a clause. $LIVE_NAMES/$LIVE_REFS are already sanitized upstream.
-  printf '%s\n' "⚑ Flowy routing ACTIVE: $LIVE_NAMES. Before any other tool: per the FLOW.md phase, commit each candidate skill ('Routing: <skill> = YES,<reason>' / 'NO,<reason>'), then invoke each YES. FLOW.md (re-read after compaction): $LIVE_REFS"
+  # TERSE track: ONE line carrying the measured lever — it forces the FLOW.md READ (the
+  # lever that took adherence 38%->100%) then INVOKE, before any other tool. The verbose
+  # per-skill YES/NO ritual is intentionally dropped (founder: minimal verbosity; terse+read
+  # == verbose for adherence). Keep it one line (tests assert this); do not split a clause.
+  printf '%s\n' "Flowy routing ACTIVE: $LIVE_NAMES. Before any other tool you MUST read the FLOW.md in full and invoke the matching skill; do not write code, edit, or claim done first. FLOW.md (re-read after compaction): $LIVE_REFS"
 fi
 
 if [ -n "$CORRUPT_NAMES" ]; then
@@ -493,7 +493,7 @@ if [ -n "$CORRUPT_NAMES" ]; then
   # name containing a dot (e.g. "flow.v2") stays intact on a single line.
   printf '%s\n' "$CORRUPT_NAMES" | while IFS= read -r CN; do
     [ -n "$CN" ] || continue
-    printf '%s\n' "⚠ Flowy: routing state for $CN is unreadable (FLOW.md not found). Re-activate with flowy:$CN, or run /flowy deactivate."
+    printf '%s\n' "Flowy: routing state for $CN is unreadable (FLOW.md not found). Re-activate with flowy:$CN, or run /flowy deactivate."
   done
 fi
 
